@@ -1,0 +1,917 @@
+import { useState, useEffect } from "react";
+
+// ── THEME ─────────────────────────────────────────────────────
+const C = {
+  bg:         "#F5F2EC",
+  surface:    "#EDE8DF",
+  card:       "#FFFFFF",
+  border:     "#DDD6C8",
+  borderDark: "#BFB8A8",
+  ink:        "#1C1810",
+  inkMid:     "#5C5448",
+  inkSoft:    "#9C9080",
+  green:      "#1A7A4A",
+  greenLight: "#E8F5EE",
+  greenDim:   "rgba(26,122,74,0.1)",
+  amber:      "#B06800",
+  amberLight: "#FFF4E0",
+  blue:       "#1A4A8A",
+  blueLight:  "#EAF0FA",
+  coral:      "#C8402A",
+  coralLight: "#FAEAE7",
+  mono:       "'DM Mono', monospace",
+  serif:      "'Playfair Display', serif",
+  sans:       "'DM Sans', sans-serif",
+};
+
+// ── MAIL SHOOTER APP SCRIPT ────────────────────────────────────
+const MAIL_SCRIPT = `/**
+ * ╔══════════════════════════════════════════════════════════╗
+ * ║         STARTUP OPS TOOLKIT — Multi Mail Shooter        ║
+ * ║         Built by Nikhil Thomas A                        ║
+ * ║         nikhil-thomas-a.github.io/startup-ops-toolkit   ║
+ * ╚══════════════════════════════════════════════════════════╝
+ *
+ * SETUP:
+ *  1. Open your Google Sheet
+ *  2. Go to Extensions → Apps Script
+ *  3. Paste this entire script, save (Ctrl+S)
+ *  4. Run setupSheet() once to create the sheet structure
+ *  5. Fill in your data and email template below
+ *  6. Run sendEmails() to send — status updates live in the sheet
+ *
+ * SHEET COLUMNS (auto-created by setupSheet):
+ *  A: First Name   B: Last Name   C: Email
+ *  D: Company      E: Role        F: Custom Variable
+ *  G: Status       H: Sent At     I: Notes
+ */
+
+// ── CONFIGURATION ─────────────────────────────────────────────
+const CONFIG = {
+  sheetName:    "Mail List",          // Sheet tab name
+  senderName:   "Nikhil Thomas A",    // Your name in From field
+  subjectLine:  "Quick note — {{First Name}} from {{Company}}",
+
+  // Your email body — use {{Column Name}} for personalisation
+  emailBody: \`Hi {{First Name}},
+
+I came across {{Company}} and wanted to reach out directly.
+
+[Your personalised message here — mention their {{Role}} or something specific about {{Company}}.]
+
+I'd love to connect and share how I've helped similar teams. Would you be open to a 20-minute call this week?
+
+Best,
+Nikhil Thomas A\`,
+
+  // Control which rows to process
+  onlySendToPending: true,   // Skip rows already marked Sent
+  testMode:          false,  // true = logs emails, doesn't send
+  delayMs:           1500,   // Delay between emails (ms) — avoid spam filters
+};
+
+// ── SETUP: Creates sheet structure ────────────────────────────
+function setupSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.sheetName);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.sheetName);
+  }
+
+  // Headers
+  const headers = [
+    "First Name", "Last Name", "Email", "Company",
+    "Role", "Custom Variable", "Status", "Sent At", "Notes"
+  ];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+  // Style header row
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setBackground("#1A7A4A");
+  headerRange.setFontColor("#FFFFFF");
+  headerRange.setFontWeight("bold");
+  headerRange.setFontFamily("Google Sans");
+
+  // Sample data rows
+  const sampleData = [
+    ["Alex", "Chen",    "alex@example.com",   "Acme Corp",   "Head of Ops",     "SaaS tools",  "Pending", "", ""],
+    ["Priya","Sharma",  "priya@example.com",  "Bloom AI",    "CEO",             "AI startup",  "Pending", "", ""],
+    ["Tom",  "Walker",  "tom@example.com",    "FounderCo",   "CTO",             "Series A",    "Pending", "", ""],
+  ];
+  sheet.getRange(2, 1, sampleData.length, headers.length).setValues(sampleData);
+
+  // Column widths
+  sheet.setColumnWidth(1, 110); sheet.setColumnWidth(2, 110);
+  sheet.setColumnWidth(3, 220); sheet.setColumnWidth(4, 150);
+  sheet.setColumnWidth(5, 150); sheet.setColumnWidth(6, 160);
+  sheet.setColumnWidth(7, 100); sheet.setColumnWidth(8, 160);
+  sheet.setColumnWidth(9, 200);
+
+  // Freeze header row
+  sheet.setFrozenRows(1);
+
+  // Status dropdown validation
+  const statusRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(["Pending", "Sent", "Failed", "Replied", "Skip"], true)
+    .build();
+  sheet.getRange(2, 7, 500, 1).setDataValidation(statusRule);
+
+  SpreadsheetApp.getUi().alert("✅ Sheet ready! Fill in your contacts and run sendEmails().");
+}
+
+// ── MAIN: Send emails ─────────────────────────────────────────
+function sendEmails() {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.sheetName);
+
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("Sheet not found. Run setupSheet() first.");
+    return;
+  }
+
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const rows    = data.slice(1);
+
+  let sent = 0, skipped = 0, failed = 0;
+
+  rows.forEach((row, i) => {
+    const rowIndex = i + 2; // 1-indexed, skip header
+    const status   = row[6]; // Column G
+
+    // Skip non-pending rows if config says so
+    if (CONFIG.onlySendToPending && status !== "Pending") {
+      skipped++;
+      return;
+    }
+    if (status === "Skip" || status === "Sent") {
+      skipped++;
+      return;
+    }
+
+    // Build personalisation map from headers + row values
+    const vars = {};
+    headers.forEach((h, idx) => { vars[h] = row[idx] || ""; });
+
+    const email   = vars["Email"];
+    if (!email || !email.includes("@")) {
+      sheet.getRange(rowIndex, 7).setValue("Failed");
+      sheet.getRange(rowIndex, 9).setValue("Invalid email address");
+      failed++;
+      return;
+    }
+
+    // Replace {{Variable}} placeholders
+    let subject = CONFIG.subjectLine;
+    let body    = CONFIG.emailBody;
+    Object.keys(vars).forEach(key => {
+      const placeholder = new RegExp(\`{{\\\\s*\${key}\\\\s*}}\`, "g");
+      subject = subject.replace(placeholder, vars[key]);
+      body    = body.replace(placeholder, vars[key]);
+    });
+
+    try {
+      if (CONFIG.testMode) {
+        Logger.log(\`TEST MODE — To: \${email}\\nSubject: \${subject}\\n\\n\${body}\\n${"─".repeat(60)}\`);
+      } else {
+        GmailApp.sendEmail(email, subject, body, {
+          name:     CONFIG.senderName,
+          replyTo:  Session.getActiveUser().getEmail(),
+        });
+      }
+
+      // Update status in sheet
+      sheet.getRange(rowIndex, 7).setValue("Sent");
+      sheet.getRange(rowIndex, 7).setBackground("#E8F5EE");
+      sheet.getRange(rowIndex, 8).setValue(new Date().toLocaleString());
+      sent++;
+
+      // Throttle to avoid Gmail rate limits
+      if (!CONFIG.testMode) Utilities.sleep(CONFIG.delayMs);
+
+    } catch (err) {
+      sheet.getRange(rowIndex, 7).setValue("Failed");
+      sheet.getRange(rowIndex, 7).setBackground("#FAEAE7");
+      sheet.getRange(rowIndex, 9).setValue(err.message);
+      failed++;
+      Logger.log(\`Failed for \${email}: \${err.message}\`);
+    }
+  });
+
+  const summary = \`✅ Done!\\n\\nSent: \${sent}\\nSkipped: \${skipped}\\nFailed: \${failed}\${CONFIG.testMode ? "\\n\\n⚠️ TEST MODE — no real emails sent. Check Logger." : ""}\`;
+  SpreadsheetApp.getUi().alert(summary);
+}
+
+// ── MENU: Adds custom menu to Sheet UI ────────────────────────
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("📧 Mail Shooter")
+    .addItem("Setup Sheet",  "setupSheet")
+    .addSeparator()
+    .addItem("Send Emails",  "sendEmails")
+    .addToUi();
+}`;
+
+// ── DOC GENERATOR APP SCRIPT ───────────────────────────────────
+const DOC_SCRIPT = `/**
+ * ╔══════════════════════════════════════════════════════════╗
+ * ║       STARTUP OPS TOOLKIT — Document Generator          ║
+ * ║       Built by Nikhil Thomas A                          ║
+ * ╚══════════════════════════════════════════════════════════╝
+ *
+ * WHAT IT DOES:
+ *  Each row in your Sheet becomes a unique Google Doc.
+ *  Use it for: offer letters, NDAs, client briefs, invoices,
+ *  onboarding packs — anything templated.
+ *
+ * SETUP:
+ *  1. Create a Google Doc template — use {{Placeholder}} for variables
+ *  2. Copy the template Doc ID from its URL
+ *  3. Paste it in CONFIG below
+ *  4. Create a destination Drive folder, paste its ID
+ *  5. Run setupSheet() to create the sheet structure
+ *  6. Fill in your data rows
+ *  7. Run generateDocs() — Doc URLs written back to sheet
+ */
+
+const CONFIG = {
+  sheetName:      "Doc List",
+  templateDocId:  "PASTE_YOUR_TEMPLATE_DOC_ID_HERE",
+  outputFolderId: "PASTE_YOUR_DRIVE_FOLDER_ID_HERE",
+  // Column name whose value becomes the Doc filename
+  fileNameColumn: "Full Name",
+  fileNamePrefix: "Offer Letter — ",  // e.g. "Offer Letter — Alex Chen"
+};
+
+function setupSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.sheetName);
+  if (!sheet) sheet = ss.insertSheet(CONFIG.sheetName);
+
+  const headers = [
+    "Full Name", "Email", "Role", "Start Date",
+    "Salary", "Manager", "Department", "Custom 1", "Custom 2",
+    "Status", "Doc URL", "Generated At"
+  ];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setBackground("#1A4A8A");
+  headerRange.setFontColor("#FFFFFF");
+  headerRange.setFontWeight("bold");
+
+  const sample = [
+    ["Alex Chen", "alex@company.com", "Senior Engineer", "1 April 2025",
+     "£85,000", "Priya Sharma", "Engineering", "", "", "Pending", "", ""],
+  ];
+  sheet.getRange(2, 1, sample.length, headers.length).setValues(sample);
+  sheet.setFrozenRows(1);
+
+  SpreadsheetApp.getUi().alert("✅ Sheet ready! Fill in your rows and run generateDocs().");
+}
+
+function generateDocs() {
+  const ss     = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet  = ss.getSheetByName(CONFIG.sheetName);
+  const data   = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const rows   = data.slice(1);
+  const folder = DriveApp.getFolderById(CONFIG.outputFolderId);
+
+  let generated = 0, skipped = 0;
+
+  rows.forEach((row, i) => {
+    const rowIndex = i + 2;
+    const status   = row[headers.indexOf("Status")];
+    if (status === "Done") { skipped++; return; }
+
+    // Build variable map
+    const vars = {};
+    headers.forEach((h, idx) => { vars[h] = row[idx] || ""; });
+
+    // Copy template
+    const templateFile = DriveApp.getFileById(CONFIG.templateDocId);
+    const fileName     = CONFIG.fileNamePrefix + (vars[CONFIG.fileNameColumn] || \`Row \${rowIndex}\`);
+    const newFile      = templateFile.makeCopy(fileName, folder);
+    const doc          = DocumentApp.openById(newFile.getId());
+    const body         = doc.getBody();
+
+    // Replace all {{placeholders}}
+    Object.keys(vars).forEach(key => {
+      body.replaceText(\`{{\\\\s*\${key}\\\\s*}}\`, vars[key]);
+    });
+
+    doc.saveAndClose();
+
+    const url = newFile.getUrl();
+    sheet.getRange(rowIndex, headers.indexOf("Status") + 1).setValue("Done");
+    sheet.getRange(rowIndex, headers.indexOf("Doc URL") + 1).setValue(url);
+    sheet.getRange(rowIndex, headers.indexOf("Generated At") + 1).setValue(new Date().toLocaleString());
+
+    generated++;
+  });
+
+  SpreadsheetApp.getUi().alert(\`✅ Done!\\n\\nGenerated: \${generated}\\nSkipped (already done): \${skipped}\`);
+}
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("📄 Doc Generator")
+    .addItem("Setup Sheet",    "setupSheet")
+    .addSeparator()
+    .addItem("Generate Docs",  "generateDocs")
+    .addToUi();
+}`;
+
+// ── TOOLS DATA ────────────────────────────────────────────────
+const TOOLS = [
+  {
+    id:       "mail-shooter",
+    emoji:    "📧",
+    status:   "live",
+    color:    C.green,
+    colorBg:  C.greenLight,
+    tag:      "Gmail + Sheets",
+    title:    "Multi Mail Shooter",
+    tagline:  "Personalised emails at scale — straight from a Google Sheet.",
+    problem:  "Sending 50 outreach emails manually takes hours, and personalising each one is error-prone. Mail merge tools cost money and require integrations.",
+    solution: "One Sheet, one script. Fill in names, emails, and variables. Hit run. Every contact gets a personalised email, status updates live in the sheet.",
+    features: [
+      "Custom {{variables}} in subject + body",
+      "Live status: Pending → Sent / Failed / Replied",
+      "Delay throttling to avoid Gmail spam flags",
+      "Test mode — logs without sending",
+      "Custom menu added directly to your Sheet",
+    ],
+    columns:  ["First Name", "Last Name", "Email", "Company", "Role", "Custom Variable", "Status", "Sent At", "Notes"],
+    steps: [
+      { n:"1", title:"Open Apps Script", desc:"In your Google Sheet: Extensions → Apps Script" },
+      { n:"2", title:"Paste the script",  desc:"Copy the full script below, paste into Apps Script editor, save (Ctrl+S)" },
+      { n:"3", title:"Run setupSheet()",  desc:"Click the function dropdown → select setupSheet → click Run. Authorise when prompted." },
+      { n:"4", title:"Fill your data",    desc:"Add contacts to the Mail List tab. Customise CONFIG.emailBody at the top of the script." },
+      { n:"5", title:"Send",              desc:"Use the 📧 Mail Shooter menu in your Sheet, or run sendEmails() directly from Apps Script." },
+    ],
+    script:   MAIL_SCRIPT,
+  },
+  {
+    id:       "doc-generator",
+    emoji:    "📄",
+    status:   "live",
+    color:    C.blue,
+    colorBg:  C.blueLight,
+    tag:      "Docs + Sheets + Drive",
+    title:    "Document Generator",
+    tagline:  "One row in a Sheet = one fully populated Google Doc in Drive.",
+    problem:  "Creating offer letters, NDAs, or client briefs one-by-one from a template wastes time and introduces copy-paste errors.",
+    solution: "Build your Doc template with {{placeholders}}, connect it to a Sheet. Each row auto-generates a unique Doc and writes the URL back.",
+    features: [
+      "Works with any Google Doc template",
+      "Supports unlimited {{placeholder}} variables",
+      "Saves Docs to a specified Drive folder",
+      "Writes Doc URL back to sheet row",
+      "Skips already-generated rows automatically",
+    ],
+    columns:  ["Full Name", "Email", "Role", "Start Date", "Salary", "Manager", "Department", "Custom 1", "Custom 2", "Status", "Doc URL", "Generated At"],
+    steps: [
+      { n:"1", title:"Create a Doc template", desc:"Make a Google Doc with {{Full Name}}, {{Role}}, {{Start Date}} etc. as placeholders." },
+      { n:"2", title:"Copy the template ID",  desc:"From the Doc URL: docs.google.com/document/d/[THIS_PART]/edit" },
+      { n:"3", title:"Create output folder",   desc:"Create a Drive folder for generated docs. Copy its ID from the URL." },
+      { n:"4", title:"Paste IDs into CONFIG", desc:"Update templateDocId and outputFolderId in the script CONFIG." },
+      { n:"5", title:"Run generateDocs()",    desc:"Each row becomes a Doc. URLs appear in the Doc URL column automatically." },
+    ],
+    script:   DOC_SCRIPT,
+  },
+  {
+    id:       "kpi-emailer",
+    emoji:    "📊",
+    status:   "coming",
+    color:    C.amber,
+    colorBg:  C.amberLight,
+    tag:      "Sheets + Gmail",
+    title:    "Weekly KPI Emailer",
+    tagline:  "Auto-sends a formatted KPI digest every Monday morning.",
+    problem:  "Someone has to manually compile and send the weekly numbers. It's always late, always slightly wrong.",
+    solution: "Sheet tracks your KPIs week by week. Script runs on a Monday trigger, compiles the latest row into a clean HTML email, sends to your distribution list.",
+    features: ["Time-based trigger (Monday 8am)", "HTML email with colour-coded RAG status", "Compares to prior week automatically", "Configurable recipient list", "No manual steps — set once, runs forever"],
+    columns:  [],
+    steps:    [],
+    script:   "",
+  },
+  {
+    id:       "hiring-tracker",
+    emoji:    "🧑‍💼",
+    status:   "coming",
+    color:    C.coral,
+    colorBg:  C.coralLight,
+    tag:      "Sheets + Gmail + Docs",
+    title:    "Hiring Pipeline Tracker",
+    tagline:  "Stage changes in your pipeline trigger candidate emails automatically.",
+    problem:  "Keeping candidates updated at every stage of the process is admin-heavy and easy to forget.",
+    solution: "Track candidates in a Sheet. When you move someone from Screened to Interview, the script sends them the right templated email instantly.",
+    features: ["Status-triggered email automation", "Stage-specific email templates", "Interview calendar link insertion", "Rejection email with one-click send", "Full candidate history log"],
+    columns:  [],
+    steps:    [],
+    script:   "",
+  },
+];
+
+// ── COPY BUTTON ───────────────────────────────────────────────
+function CopyBtn({ text, label = "Copy Script", size = 14 }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={copy} style={{
+      fontFamily: C.mono, fontSize: size, fontWeight: 700,
+      padding: "8px 18px", borderRadius: 6, cursor: "pointer",
+      border: `1.5px solid ${copied ? C.green : C.borderDark}`,
+      background: copied ? C.greenLight : C.surface,
+      color: copied ? C.green : C.inkMid,
+      transition: "all 0.2s",
+      display: "flex", alignItems: "center", gap: 8,
+    }}>
+      {copied ? "✓ Copied!" : `⎘ ${label}`}
+    </button>
+  );
+}
+
+// ── STEP CARD ─────────────────────────────────────────────────
+function StepCard({ step, color }) {
+  return (
+    <div style={{
+      display: "flex", gap: 16, alignItems: "flex-start",
+      padding: "16px 0",
+      borderBottom: `1px solid ${C.border}`,
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: "50%",
+        background: color, color: "#fff",
+        fontFamily: C.mono, fontSize: 13, fontWeight: 700,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}>{step.n}</div>
+      <div>
+        <div style={{ fontFamily: C.sans, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 4 }}>{step.title}</div>
+        <div style={{ fontFamily: C.sans, fontSize: 14, color: C.inkMid, lineHeight: 1.6 }}>{step.desc}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── TOOL CARD (collapsed) ─────────────────────────────────────
+function ToolCard({ tool, onOpen }) {
+  const isLive = tool.status === "live";
+  return (
+    <div
+      onClick={isLive ? onOpen : undefined}
+      style={{
+        background: C.card,
+        border: `1.5px solid ${C.border}`,
+        borderRadius: 14,
+        padding: "28px 32px",
+        cursor: isLive ? "pointer" : "default",
+        opacity: isLive ? 1 : 0.7,
+        transition: "border-color 0.2s, transform 0.15s, box-shadow 0.2s",
+        position: "relative",
+        overflow: "hidden",
+      }}
+      onMouseEnter={e => {
+        if (!isLive) return;
+        e.currentTarget.style.borderColor = tool.color;
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = `0 8px 32px rgba(0,0,0,0.08)`;
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = C.border;
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    >
+      {/* Top accent bar */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background: isLive ? tool.color : C.border, borderRadius:"14px 14px 0 0" }} />
+
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16 }}>
+        <div style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
+          <div style={{ fontSize:32, lineHeight:1, marginTop:2 }}>{tool.emoji}</div>
+          <div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, flexWrap:"wrap" }}>
+              <span style={{
+                fontFamily: C.mono, fontSize: 11, fontWeight: 700,
+                background: tool.colorBg, color: tool.color,
+                padding: "2px 10px", borderRadius: 4,
+                letterSpacing: "0.08em", textTransform: "uppercase",
+              }}>{tool.tag}</span>
+              {isLive ? (
+                <span style={{
+                  fontFamily: C.mono, fontSize: 11, fontWeight: 700,
+                  background: C.greenLight, color: C.green,
+                  padding: "2px 10px", borderRadius: 4,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                }}>● Live</span>
+              ) : (
+                <span style={{
+                  fontFamily: C.mono, fontSize: 11, fontWeight: 700,
+                  background: C.surface, color: C.inkSoft,
+                  padding: "2px 10px", borderRadius: 4,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                }}>Coming soon</span>
+              )}
+            </div>
+            <h3 style={{ fontFamily: C.serif, fontSize: 22, fontWeight: 800, color: C.ink, marginBottom: 6 }}>{tool.title}</h3>
+            <p style={{ fontFamily: C.sans, fontSize: 15, color: C.inkMid, lineHeight: 1.6 }}>{tool.tagline}</p>
+          </div>
+        </div>
+        {isLive && (
+          <div style={{ color: tool.color, fontSize: 22, marginTop: 4, flexShrink:0 }}>→</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── TOOL DETAIL (expanded) ────────────────────────────────────
+function ToolDetail({ tool, onClose }) {
+  const [tab, setTab] = useState("setup");
+
+  return (
+    <div style={{
+      background: C.card,
+      border: `2px solid ${tool.color}`,
+      borderRadius: 16,
+      overflow: "hidden",
+    }}>
+      {/* Header */}
+      <div style={{
+        background: tool.color,
+        padding: "28px 36px",
+        display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+      }}>
+        <div>
+          <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:8 }}>
+            <span style={{ fontSize:28 }}>{tool.emoji}</span>
+            <span style={{
+              fontFamily: C.mono, fontSize: 11, fontWeight: 700,
+              background: "rgba(255,255,255,0.2)", color: "#fff",
+              padding: "2px 10px", borderRadius: 4,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+            }}>{tool.tag}</span>
+          </div>
+          <h2 style={{ fontFamily: C.serif, fontSize: 30, fontWeight: 800, color: "#fff", marginBottom: 6 }}>{tool.title}</h2>
+          <p style={{ fontFamily: C.sans, fontSize: 16, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>{tool.tagline}</p>
+        </div>
+        <button onClick={onClose} style={{
+          background: "rgba(255,255,255,0.15)", border: "none",
+          color: "#fff", fontSize: 20, cursor: "pointer",
+          width: 36, height: 36, borderRadius: "50%",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          flexShrink: 0,
+        }}>✕</button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{
+        display:"flex", gap:0,
+        borderBottom: `1px solid ${C.border}`,
+        background: C.surface,
+      }}>
+        {["setup","script"].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            fontFamily: C.mono, fontSize: 12, fontWeight: 700,
+            padding: "14px 28px", border:"none", cursor:"pointer",
+            textTransform:"uppercase", letterSpacing:"0.1em",
+            background: tab === t ? C.card : "transparent",
+            color: tab === t ? tool.color : C.inkSoft,
+            borderBottom: tab === t ? `2px solid ${tool.color}` : "2px solid transparent",
+            transition: "all 0.15s",
+          }}>
+            {t === "setup" ? "📋 Setup Guide" : "⎘ App Script"}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div style={{ padding: "32px 36px" }}>
+
+        {tab === "setup" && (
+          <div>
+            {/* Problem / Solution */}
+            <div style={{
+              display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, marginBottom:32,
+            }}>
+              <div style={{
+                background: "#FFF8F7", border: `1px solid #F0D0CC`,
+                borderRadius:12, padding:"20px 24px",
+              }}>
+                <div style={{ fontFamily:C.mono, fontSize:11, fontWeight:700, color:C.coral, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8 }}>⚠ The Problem</div>
+                <p style={{ fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.7 }}>{tool.problem}</p>
+              </div>
+              <div style={{
+                background: tool.colorBg, border: `1px solid ${tool.color}30`,
+                borderRadius:12, padding:"20px 24px",
+              }}>
+                <div style={{ fontFamily:C.mono, fontSize:11, fontWeight:700, color:tool.color, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8 }}>✓ The Solution</div>
+                <p style={{ fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.7 }}>{tool.solution}</p>
+              </div>
+            </div>
+
+            {/* Features */}
+            <div style={{ marginBottom:32 }}>
+              <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink, marginBottom:14 }}>What it does</h4>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {tool.features.map((f,i) => (
+                  <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+                    <span style={{ color:tool.color, fontWeight:700, marginTop:2 }}>→</span>
+                    <span style={{ fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.6 }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Sheet structure */}
+            {tool.columns.length > 0 && (
+              <div style={{ marginBottom:32 }}>
+                <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink, marginBottom:14 }}>Sheet columns (auto-created)</h4>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                  {tool.columns.map((col,i) => (
+                    <span key={i} style={{
+                      fontFamily:C.mono, fontSize:12, fontWeight:500,
+                      background:C.surface, border:`1px solid ${C.border}`,
+                      borderRadius:4, padding:"4px 12px", color:C.inkMid,
+                    }}>{col}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Steps */}
+            {tool.steps.length > 0 && (
+              <div>
+                <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink, marginBottom:4 }}>Setup — {tool.steps.length} steps</h4>
+                <div>
+                  {tool.steps.map((s,i) => <StepCard key={i} step={s} color={tool.color} />)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "script" && (
+          <div>
+            <div style={{
+              display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16,
+            }}>
+              <div>
+                <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink }}>Google Apps Script</h4>
+                <p style={{ fontFamily:C.sans, fontSize:13, color:C.inkSoft, marginTop:4 }}>
+                  Extensions → Apps Script → paste → save (Ctrl+S) → run setupSheet()
+                </p>
+              </div>
+              <CopyBtn text={tool.script} label="Copy Script" />
+            </div>
+            <div style={{
+              background: "#1C1810",
+              borderRadius: 10,
+              padding: "24px 28px",
+              overflowX: "auto",
+              border: `1px solid ${C.borderDark}`,
+            }}>
+              <pre style={{
+                fontFamily: C.mono,
+                fontSize: 12.5,
+                lineHeight: 1.75,
+                color: "#C8C0B0",
+                whiteSpace: "pre",
+                margin: 0,
+              }}>{tool.script}</pre>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN APP ──────────────────────────────────────────────────
+export default function App() {
+  const [activeTool, setActiveTool] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const liveTool = TOOLS.find(t => t.id === activeTool);
+  const liveCount = TOOLS.filter(t => t.status === "live").length;
+  const comingCount = TOOLS.filter(t => t.status === "coming").length;
+
+  return (
+    <div style={{
+      fontFamily: C.sans,
+      background: C.bg,
+      minHeight: "100vh",
+      opacity: mounted ? 1 : 0,
+      transition: "opacity 0.4s ease",
+    }}>
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px 80px" }}>
+
+        {/* ── NAV ── */}
+        <div style={{
+          display:"flex", justifyContent:"space-between", alignItems:"center",
+          padding:"22px 0", borderBottom:`1px solid ${C.border}`,
+          marginBottom:56,
+        }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:20 }}>⚙️</span>
+            <span style={{ fontFamily:C.serif, fontSize:18, fontWeight:800, color:C.ink }}>
+              Startup Ops Toolkit
+            </span>
+          </div>
+          <a
+            href="https://www.linkedin.com/in/nikhil-thomas-a-58538117a/"
+            target="_blank" rel="noopener noreferrer"
+            style={{
+              fontFamily:C.mono, fontSize:11, color:C.inkSoft,
+              textDecoration:"none", letterSpacing:"0.08em",
+              display:"flex", alignItems:"center", gap:6,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={C.inkSoft}><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            Nikhil Thomas A
+          </a>
+        </div>
+
+        {/* ── HERO ── */}
+        <div style={{ marginBottom: 64 }}>
+          <div style={{
+            fontFamily:C.mono, fontSize:12, fontWeight:700,
+            color:C.green, letterSpacing:"0.16em", textTransform:"uppercase",
+            marginBottom:20,
+            display:"flex", alignItems:"center", gap:8,
+          }}>
+            <span style={{ display:"inline-block", width:28, height:2, background:C.green, borderRadius:1 }} />
+            Google Workspace Automations
+          </div>
+
+          <h1 style={{
+            fontFamily: C.serif,
+            fontSize: "clamp(44px, 7vw, 72px)",
+            fontWeight: 900,
+            lineHeight: 1.0,
+            letterSpacing: "-0.02em",
+            color: C.ink,
+            marginBottom: 24,
+          }}>
+            Real tools for<br />
+            <em style={{ color: C.green }}>startup ops.</em>
+          </h1>
+
+          <p style={{
+            fontFamily: C.sans,
+            fontSize: 18,
+            lineHeight: 1.75,
+            color: C.inkMid,
+            maxWidth: 560,
+            marginBottom: 40,
+          }}>
+            Google Sheets templates and Apps Script automations that replace manual
+            workflows. Copy, paste, run. Built by a Fractional Head of Data for
+            early-stage teams who move fast.
+          </p>
+
+          {/* Stats row */}
+          <div style={{ display:"flex", gap:32, flexWrap:"wrap" }}>
+            {[
+              { n: liveCount,      label:"Tools live now" },
+              { n: comingCount,    label:"In the pipeline" },
+              { n:"0",             label:"Cost. Fully free." },
+            ].map((s,i) => (
+              <div key={i}>
+                <div style={{ fontFamily:C.serif, fontSize:40, fontWeight:800, color:C.green, lineHeight:1 }}>{s.n}</div>
+                <div style={{ fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.08em", textTransform:"uppercase", marginTop:4 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── CROSSLINK ── */}
+        <div style={{
+          background: "#1C1810",
+          borderRadius: 12,
+          padding: "18px 24px",
+          display:"flex", justifyContent:"space-between", alignItems:"center",
+          flexWrap:"wrap", gap:12,
+          marginBottom: 56,
+        }}>
+          <div>
+            <span style={{ fontFamily:C.mono, fontSize:11, color:"#7A6A5A", letterSpacing:"0.1em", textTransform:"uppercase" }}>
+              Also by Nikhil →
+            </span>
+            <span style={{ fontFamily:C.sans, fontSize:15, color:"#C8C0B0", marginLeft:10 }}>
+              PM AI Hub — 13 AI prompts for Delivery PMs
+            </span>
+          </div>
+          <a
+            href="https://nikhil-thomas-a.github.io/pm-ai-hub/"
+            target="_blank" rel="noopener noreferrer"
+            style={{
+              fontFamily:C.mono, fontSize:12, fontWeight:700,
+              color:"#E5484D", textDecoration:"none",
+              border:"1px solid rgba(229,72,77,0.3)",
+              padding:"6px 16px", borderRadius:6,
+              letterSpacing:"0.06em",
+            }}
+          >Visit PM AI Hub →</a>
+        </div>
+
+        {/* ── TOOLS SECTION ── */}
+        <div>
+          <h2 style={{
+            fontFamily: C.serif, fontSize: 32, fontWeight: 800,
+            color: C.ink, marginBottom: 8,
+          }}>The Toolkit</h2>
+          <p style={{ fontFamily:C.sans, fontSize:15, color:C.inkSoft, marginBottom:32 }}>
+            Click any live tool to see the full setup guide and App Script.
+          </p>
+
+          {/* Active tool detail */}
+          {liveTool && (
+            <div style={{ marginBottom:24 }}>
+              <ToolDetail tool={liveTool} onClose={() => setActiveTool(null)} />
+            </div>
+          )}
+
+          {/* Tool cards grid */}
+          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {TOOLS.filter(t => t.id !== activeTool).map(tool => (
+              <ToolCard
+                key={tool.id}
+                tool={tool}
+                onOpen={() => {
+                  setActiveTool(tool.id);
+                  setTimeout(() => window.scrollTo({ top: 0, behavior:"smooth" }), 50);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── ABOUT ── */}
+        <div style={{
+          marginTop:64, paddingTop:40,
+          borderTop:`1px solid ${C.border}`,
+        }}>
+          <div style={{
+            background: C.card,
+            border:`1.5px solid ${C.border}`,
+            borderRadius:14, padding:"32px 36px",
+          }}>
+            <div style={{ fontFamily:C.mono, fontSize:11, fontWeight:700, color:C.green, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>
+              About this project
+            </div>
+            <h3 style={{ fontFamily:C.serif, fontSize:24, fontWeight:800, color:C.ink, marginBottom:12 }}>
+              Built for the ops person who wears too many hats.
+            </h3>
+            <p style={{ fontFamily:C.sans, fontSize:15, color:C.inkMid, lineHeight:1.8, marginBottom:20 }}>
+              Early-stage startups run on Google Workspace. Sheets for everything, Docs for contracts,
+              Gmail for outreach. Most of it is manual, repetitive, and error-prone. These tools automate
+              the patterns I've seen repeated across dozens of startups — no paid tools, no integrations,
+              just Apps Script that you own entirely.
+            </p>
+            <a
+              href="https://www.linkedin.com/in/nikhil-thomas-a-58538117a/"
+              target="_blank" rel="noopener noreferrer"
+              style={{
+                display:"inline-flex", alignItems:"center", gap:8,
+                fontFamily:C.mono, fontSize:12, fontWeight:700,
+                color:C.ink, textDecoration:"none",
+                border:`1.5px solid ${C.borderDark}`,
+                padding:"10px 20px", borderRadius:8,
+                letterSpacing:"0.06em",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={C.ink}><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+              Connect with Nikhil Thomas A
+            </a>
+          </div>
+        </div>
+
+        {/* ── FOOTER ── */}
+        <div style={{
+          marginTop:48, paddingTop:24,
+          borderTop:`1px solid ${C.border}`,
+          display:"flex", justifyContent:"space-between", alignItems:"center",
+          flexWrap:"wrap", gap:12,
+        }}>
+          <span style={{ fontFamily:C.serif, fontSize:16, fontWeight:800, color:C.ink }}>
+            Startup Ops Toolkit
+          </span>
+          <span style={{ fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.06em" }}>
+            Built by Nikhil Thomas A · Free forever
+          </span>
+        </div>
+
+      </div>
+    </div>
+  );
+}
