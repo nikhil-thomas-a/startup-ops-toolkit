@@ -740,7 +740,7 @@ export default function App() {
       opacity: mounted ? 1 : 0,
       transition: "opacity 0.4s ease, background 0.3s",
     }}>
-      <style>{`html,body,#root{background:${C.bg}!important;transition:background 0.3s;}`}</style>
+      <style>{`html,body,#root{background:` + C.bg + `!important;transition:background 0.3s;}`}</style>
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px 80px" }}>
 
         {/* ── NAV ── */}
