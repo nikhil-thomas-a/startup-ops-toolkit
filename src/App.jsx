@@ -1,55 +1,30 @@
 import { useState, useEffect } from "react";
 
-// ── THEMES ────────────────────────────────────────────────────
-const LIGHT_THEME = {
-  bg:         "#F5F2EC",
-  surface:    "#EDE8DF",
-  card:       "#FFFFFF",
-  border:     "#DDD6C8",
-  borderDark: "#BFB8A8",
-  ink:        "#1C1810",
-  inkMid:     "#5C5448",
-  inkSoft:    "#9C9080",
-  green:      "#1A7A4A",
-  greenLight: "#E8F5EE",
-  greenDim:   "rgba(26,122,74,0.1)",
-  amber:      "#B06800",
-  amberLight: "#FFF4E0",
-  blue:       "#1A4A8A",
-  blueLight:  "#EAF0FA",
-  coral:      "#C8402A",
-  coralLight: "#FAEAE7",
-  isDark:     false,
-  mono:       "'DM Mono', monospace",
-  serif:      "'Playfair Display', serif",
-  sans:       "'DM Sans', sans-serif",
+// ── THEMES ─────────────────────────────────────────────────────
+const LIGHT = {
+  bg:"#F5F2EC", surface:"#EDE8DF", card:"#FFFFFF",
+  border:"#DDD6C8", borderDark:"#BFB8A8",
+  ink:"#1C1810", inkMid:"#5C5448", inkSoft:"#9C9080",
+  green:"#1A7A4A", greenLight:"#E8F5EE", greenDim:"rgba(26,122,74,0.1)",
+  amber:"#B06800", amberLight:"#FFF4E0",
+  blue:"#1A4A8A",  blueLight:"#EAF0FA",
+  coral:"#C8402A", coralLight:"#FAEAE7",
+  isDark:false,
+  mono:"'DM Mono', monospace", serif:"'Playfair Display', serif", sans:"'DM Sans', sans-serif",
+};
+const DARK = {
+  bg:"#111210", surface:"#1C1E1A", card:"#232620",
+  border:"#2E3028", borderDark:"#3E4238",
+  ink:"#E8E4DC", inkMid:"#A8A49C", inkSoft:"#6A6860",
+  green:"#2EAB68", greenLight:"#0D2A1C", greenDim:"rgba(46,171,104,0.12)",
+  amber:"#E89A20", amberLight:"#2A1E08",
+  blue:"#4A8AE8",  blueLight:"#0A1828",
+  coral:"#E85A40", coralLight:"#2A0F08",
+  isDark:true,
+  mono:"'DM Mono', monospace", serif:"'Playfair Display', serif", sans:"'DM Sans', sans-serif",
 };
 
-const DARK_THEME = {
-  bg:         "#111210",
-  surface:    "#1C1E1A",
-  card:       "#232620",
-  border:     "#2E3028",
-  borderDark: "#3E4238",
-  ink:        "#E8E4DC",
-  inkMid:     "#A8A49C",
-  inkSoft:    "#6A6860",
-  green:      "#2EAB68",
-  greenLight: "#0D2A1C",
-  greenDim:   "rgba(46,171,104,0.12)",
-  amber:      "#E89A20",
-  amberLight: "#2A1E08",
-  blue:       "#4A8AE8",
-  blueLight:  "#0A1828",
-  coral:      "#E85A40",
-  coralLight: "#2A0F08",
-  isDark:     true,
-  mono:       "'DM Mono', monospace",
-  serif:      "'Playfair Display', serif",
-  sans:       "'DM Sans', sans-serif",
-};
-
-// ── MAIL SHOOTER APP SCRIPT ────────────────────────────────────
+// ── APP SCRIPTS ────────────────────────────────────────────────
 const MAIL_SCRIPT = `/**
  * ╔══════════════════════════════════════════════════════════╗
  * ║         STARTUP OPS TOOLKIT — Multi Mail Shooter        ║
@@ -238,7 +213,6 @@ function onOpen() {
     .addToUi();
 }`;
 
-// ── DOC GENERATOR APP SCRIPT ───────────────────────────────────
 const DOC_SCRIPT = `/**
  * ╔══════════════════════════════════════════════════════════╗
  * ║       STARTUP OPS TOOLKIT — Document Generator          ║
@@ -349,624 +323,446 @@ function onOpen() {
     .addToUi();
 }`;
 
-// ── TOOLS DATA ────────────────────────────────────────────────
+// ── TOOLS DATA (plain colour strings, no theme refs) ───────────
 const TOOLS = [
   {
-    id:       "mail-shooter",
-    emoji:    "📧",
-    status:   "live",
-    color:    C.green,
-    colorBg:  C.greenLight,
-    tag:      "Gmail + Sheets",
-    title:    "Multi Mail Shooter",
-    tagline:  "Personalised emails at scale — straight from a Google Sheet.",
-    problem:  "Sending 50 outreach emails manually takes hours, and personalising each one is error-prone. Mail merge tools cost money and require integrations.",
-    solution: "One Sheet, one script. Fill in names, emails, and variables. Hit run. Every contact gets a personalised email, status updates live in the sheet.",
-    features: [
+    id:"mail-shooter", emoji:"📧", status:"live",
+    colorKey:"green", tag:"Gmail + Sheets",
+    title:"Multi Mail Shooter",
+    tagline:"Personalised emails at scale — straight from a Google Sheet.",
+    problem:"Sending 50 outreach emails manually takes hours, and personalising each one is error-prone. Mail merge tools cost money and require integrations.",
+    solution:"One Sheet, one script. Fill in names, emails, and variables. Hit run. Every contact gets a personalised email, status updates live in the sheet.",
+    features:[
       "Custom {{variables}} in subject + body",
       "Live status: Pending → Sent / Failed / Replied",
       "Delay throttling to avoid Gmail spam flags",
       "Test mode — logs without sending",
       "Custom menu added directly to your Sheet",
     ],
-    columns:  ["First Name", "Last Name", "Email", "Company", "Role", "Custom Variable", "Status", "Sent At", "Notes"],
-    steps: [
-      { n:"1", title:"Open Apps Script", desc:"In your Google Sheet: Extensions → Apps Script" },
-      { n:"2", title:"Paste the script",  desc:"Copy the full script below, paste into Apps Script editor, save (Ctrl+S)" },
-      { n:"3", title:"Run setupSheet()",  desc:"Click the function dropdown → select setupSheet → click Run. Authorise when prompted." },
-      { n:"4", title:"Fill your data",    desc:"Add contacts to the Mail List tab. Customise CONFIG.emailBody at the top of the script." },
-      { n:"5", title:"Send",              desc:"Use the 📧 Mail Shooter menu in your Sheet, or run sendEmails() directly from Apps Script." },
+    columns:["First Name","Last Name","Email","Company","Role","Custom Variable","Status","Sent At","Notes"],
+    steps:[
+      {n:"1",title:"Open Apps Script",desc:"In your Google Sheet: Extensions → Apps Script"},
+      {n:"2",title:"Paste the script",desc:"Copy the full script below, paste into Apps Script editor, save (Ctrl+S)"},
+      {n:"3",title:"Run setupSheet()",desc:"Click the function dropdown → select setupSheet → click Run. Authorise when prompted."},
+      {n:"4",title:"Fill your data",desc:"Add contacts to the Mail List tab. Customise CONFIG.emailBody at the top of the script."},
+      {n:"5",title:"Send",desc:"Use the 📧 Mail Shooter menu in your Sheet, or run sendEmails() directly from Apps Script."},
     ],
-    script:   MAIL_SCRIPT,
+    script:MAIL_SCRIPT,
   },
   {
-    id:       "doc-generator",
-    emoji:    "📄",
-    status:   "live",
-    color:    C.blue,
-    colorBg:  C.blueLight,
-    tag:      "Docs + Sheets + Drive",
-    title:    "Document Generator",
-    tagline:  "One row in a Sheet = one fully populated Google Doc in Drive.",
-    problem:  "Creating offer letters, NDAs, or client briefs one-by-one from a template wastes time and introduces copy-paste errors.",
-    solution: "Build your Doc template with {{placeholders}}, connect it to a Sheet. Each row auto-generates a unique Doc and writes the URL back.",
-    features: [
+    id:"doc-generator", emoji:"📄", status:"live",
+    colorKey:"blue", tag:"Docs + Sheets + Drive",
+    title:"Document Generator",
+    tagline:"One row in a Sheet = one fully populated Google Doc in Drive.",
+    problem:"Creating offer letters, NDAs, or client briefs one-by-one from a template wastes time and introduces copy-paste errors.",
+    solution:"Build your Doc template with {{placeholders}}, connect it to a Sheet. Each row auto-generates a unique Doc and writes the URL back.",
+    features:[
       "Works with any Google Doc template",
       "Supports unlimited {{placeholder}} variables",
       "Saves Docs to a specified Drive folder",
       "Writes Doc URL back to sheet row",
       "Skips already-generated rows automatically",
     ],
-    columns:  ["Full Name", "Email", "Role", "Start Date", "Salary", "Manager", "Department", "Custom 1", "Custom 2", "Status", "Doc URL", "Generated At"],
-    steps: [
-      { n:"1", title:"Create a Doc template", desc:"Make a Google Doc with {{Full Name}}, {{Role}}, {{Start Date}} etc. as placeholders." },
-      { n:"2", title:"Copy the template ID",  desc:"From the Doc URL: docs.google.com/document/d/[THIS_PART]/edit" },
-      { n:"3", title:"Create output folder",   desc:"Create a Drive folder for generated docs. Copy its ID from the URL." },
-      { n:"4", title:"Paste IDs into CONFIG", desc:"Update templateDocId and outputFolderId in the script CONFIG." },
-      { n:"5", title:"Run generateDocs()",    desc:"Each row becomes a Doc. URLs appear in the Doc URL column automatically." },
+    columns:["Full Name","Email","Role","Start Date","Salary","Manager","Department","Custom 1","Custom 2","Status","Doc URL","Generated At"],
+    steps:[
+      {n:"1",title:"Create a Doc template",desc:"Make a Google Doc with {{Full Name}}, {{Role}}, {{Start Date}} etc. as placeholders."},
+      {n:"2",title:"Copy the template ID",desc:"From the Doc URL: docs.google.com/document/d/[THIS_PART]/edit"},
+      {n:"3",title:"Create output folder",desc:"Create a Drive folder for generated docs. Copy its ID from the URL."},
+      {n:"4",title:"Paste IDs into CONFIG",desc:"Update templateDocId and outputFolderId in the script CONFIG."},
+      {n:"5",title:"Run generateDocs()",desc:"Each row becomes a Doc. URLs appear in the Doc URL column automatically."},
     ],
-    script:   DOC_SCRIPT,
+    script:DOC_SCRIPT,
   },
   {
-    id:       "kpi-emailer",
-    emoji:    "📊",
-    status:   "coming",
-    color:    C.amber,
-    colorBg:  C.amberLight,
-    tag:      "Sheets + Gmail",
-    title:    "Weekly KPI Emailer",
-    tagline:  "Auto-sends a formatted KPI digest every Monday morning.",
-    problem:  "Someone has to manually compile and send the weekly numbers. It's always late, always slightly wrong.",
-    solution: "Sheet tracks your KPIs week by week. Script runs on a Monday trigger, compiles the latest row into a clean HTML email, sends to your distribution list.",
-    features: ["Time-based trigger (Monday 8am)", "HTML email with colour-coded RAG status", "Compares to prior week automatically", "Configurable recipient list", "No manual steps — set once, runs forever"],
-    columns:  [],
-    steps:    [],
-    script:   "",
+    id:"kpi-emailer", emoji:"📊", status:"coming",
+    colorKey:"amber", tag:"Sheets + Gmail",
+    title:"Weekly KPI Emailer",
+    tagline:"Auto-sends a formatted KPI digest every Monday morning.",
+    problem:"Someone has to manually compile and send the weekly numbers. It's always late, always slightly wrong.",
+    solution:"Sheet tracks your KPIs week by week. Script runs on a Monday trigger, compiles the latest row into a clean HTML email, sends to your distribution list.",
+    features:["Time-based trigger (Monday 8am)","HTML email with colour-coded RAG status","Compares to prior week automatically","Configurable recipient list","No manual steps — set once, runs forever"],
+    columns:[], steps:[], script:"",
   },
   {
-    id:       "hiring-tracker",
-    emoji:    "🧑‍💼",
-    status:   "coming",
-    color:    C.coral,
-    colorBg:  C.coralLight,
-    tag:      "Sheets + Gmail + Docs",
-    title:    "Hiring Pipeline Tracker",
-    tagline:  "Stage changes in your pipeline trigger candidate emails automatically.",
-    problem:  "Keeping candidates updated at every stage of the process is admin-heavy and easy to forget.",
-    solution: "Track candidates in a Sheet. When you move someone from Screened to Interview, the script sends them the right templated email instantly.",
-    features: ["Status-triggered email automation", "Stage-specific email templates", "Interview calendar link insertion", "Rejection email with one-click send", "Full candidate history log"],
-    columns:  [],
-    steps:    [],
-    script:   "",
+    id:"hiring-tracker", emoji:"🧑‍💼", status:"coming",
+    colorKey:"coral", tag:"Sheets + Gmail + Docs",
+    title:"Hiring Pipeline Tracker",
+    tagline:"Stage changes in your pipeline trigger candidate emails automatically.",
+    problem:"Keeping candidates updated at every stage of the process is admin-heavy and easy to forget.",
+    solution:"Track candidates in a Sheet. When you move someone from Screened to Interview, the script sends them the right templated email instantly.",
+    features:["Status-triggered email automation","Stage-specific email templates","Interview calendar link insertion","Rejection email with one-click send","Full candidate history log"],
+    columns:[], steps:[], script:"",
   },
 ];
 
-// ── COPY BUTTON ───────────────────────────────────────────────
-function CopyBtn({ text, label = "Copy Script", size = 14, C }) {
+// ── COPY BUTTON ────────────────────────────────────────────────
+function CopyBtn({ text, label="Copy Script", size=14, C }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(()=>setCopied(false), 2200);
   };
   return (
     <button onClick={copy} style={{
-      fontFamily: C.mono, fontSize: size, fontWeight: 700,
-      padding: "8px 18px", borderRadius: 6, cursor: "pointer",
-      border: `1.5px solid ${copied ? C.green : C.borderDark}`,
+      display:"inline-flex", alignItems:"center", gap:8,
+      fontFamily:C.mono, fontSize:size, fontWeight:700,
+      border:"1.5px solid " + (copied ? C.green : C.borderDark),
       background: copied ? C.greenLight : C.surface,
       color: copied ? C.green : C.inkMid,
-      transition: "all 0.2s",
-      display: "flex", alignItems: "center", gap: 8,
+      padding:"10px 20px", borderRadius:8, cursor:"pointer",
+      letterSpacing:"0.04em", transition:"all 0.2s",
     }}>
-      {copied ? "✓ Copied!" : `⎘ ${label}`}
+      {copied ? "✓ Copied!" : "⎘ " + label}
     </button>
   );
 }
 
-// ── STEP CARD ─────────────────────────────────────────────────
+// ── STEP CARD ──────────────────────────────────────────────────
 function StepCard({ step, color, C }) {
   return (
     <div style={{
-      display: "flex", gap: 16, alignItems: "flex-start",
-      padding: "16px 0",
-      borderBottom: `1px solid ${C.border}`,
+      display:"flex", gap:16, padding:"14px 0",
+      borderBottom:"1px solid " + C.border,
     }}>
       <div style={{
-        width: 32, height: 32, borderRadius: "50%",
-        background: color, color: "#fff",
-        fontFamily: C.mono, fontSize: 13, fontWeight: 700,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0,
+        width:28, height:28, borderRadius:"50%",
+        background:color, color:"#fff",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        fontFamily:C.mono, fontSize:13, fontWeight:700, flexShrink:0,
       }}>{step.n}</div>
       <div>
-        <div style={{ fontFamily: C.sans, fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 4 }}>{step.title}</div>
-        <div style={{ fontFamily: C.sans, fontSize: 14, color: C.inkMid, lineHeight: 1.6 }}>{step.desc}</div>
+        <div style={{fontFamily:C.sans, fontSize:15, fontWeight:600, color:C.ink, marginBottom:4}}>{step.title}</div>
+        <div style={{fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.6}}>{step.desc}</div>
       </div>
     </div>
   );
 }
 
-// ── TOOL CARD (collapsed) ─────────────────────────────────────
+// ── TOOL CARD ──────────────────────────────────────────────────
 function ToolCard({ tool, onOpen, C }) {
+  const [hov, setHov] = useState(false);
+  const color = C[tool.colorKey];
+  const colorBg = C[tool.colorKey + "Light"];
   const isLive = tool.status === "live";
   return (
     <div
       onClick={isLive ? onOpen : undefined}
+      onMouseEnter={()=>isLive && setHov(true)}
+      onMouseLeave={()=>setHov(false)}
       style={{
         background: C.card,
-        border: `1.5px solid ${C.border}`,
-        borderRadius: 14,
-        padding: "28px 32px",
+        border:"1.5px solid " + (hov ? color : C.border),
+        borderRadius:14, padding:"28px 32px",
         cursor: isLive ? "pointer" : "default",
-        opacity: isLive ? 1 : 0.7,
-        transition: "border-color 0.2s, transform 0.15s, box-shadow 0.2s",
-        position: "relative",
-        overflow: "hidden",
-      }}
-      onMouseEnter={e => {
-        if (!isLive) return;
-        e.currentTarget.style.borderColor = tool.color;
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = `0 8px 32px rgba(0,0,0,0.08)`;
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = C.border;
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "none";
-      }}
-    >
-      {/* Top accent bar */}
-      <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background: isLive ? tool.color : C.border, borderRadius:"14px 14px 0 0" }} />
-
-      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16 }}>
-        <div style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
-          <div style={{ fontSize:32, lineHeight:1, marginTop:2 }}>{tool.emoji}</div>
-          <div>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, flexWrap:"wrap" }}>
-              <span style={{
-                fontFamily: C.mono, fontSize: 11, fontWeight: 700,
-                background: tool.colorBg, color: tool.color,
-                padding: "2px 10px", borderRadius: 4,
-                letterSpacing: "0.08em", textTransform: "uppercase",
-              }}>{tool.tag}</span>
-              {isLive ? (
-                <span style={{
-                  fontFamily: C.mono, fontSize: 11, fontWeight: 700,
-                  background: C.greenLight, color: C.green,
-                  padding: "2px 10px", borderRadius: 4,
-                  letterSpacing: "0.08em", textTransform: "uppercase",
-                }}>● Live</span>
-              ) : (
-                <span style={{
-                  fontFamily: C.mono, fontSize: 11, fontWeight: 700,
-                  background: C.surface, color: C.inkSoft,
-                  padding: "2px 10px", borderRadius: 4,
-                  letterSpacing: "0.08em", textTransform: "uppercase",
-                }}>Coming soon</span>
-              )}
-            </div>
-            <h3 style={{ fontFamily: C.serif, fontSize: 22, fontWeight: 800, color: C.ink, marginBottom: 6 }}>{tool.title}</h3>
-            <p style={{ fontFamily: C.sans, fontSize: 15, color: C.inkMid, lineHeight: 1.6 }}>{tool.tagline}</p>
-          </div>
+        transition:"all 0.2s",
+        transform: hov ? "translateY(-2px)" : "none",
+        boxShadow: hov ? "0 8px 32px rgba(0,0,0," + (C.isDark?0.4:0.1) + ")" : "none",
+        position:"relative", overflow:"hidden",
+      }}>
+      {isLive && <div style={{
+        position:"absolute", top:0, left:0, right:0, height:3,
+        background:color, opacity:hov?1:0.4, transition:"opacity 0.2s",
+        borderRadius:"14px 14px 0 0",
+      }}/>}
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16}}>
+        <div style={{display:"flex", alignItems:"center", gap:10}}>
+          <span style={{fontSize:24}}>{tool.emoji}</span>
+          <span style={{
+            fontFamily:C.mono, fontSize:10, fontWeight:700,
+            color:color, background:colorBg,
+            padding:"3px 9px", borderRadius:4,
+            letterSpacing:"0.1em", textTransform:"uppercase",
+          }}>{tool.tag}</span>
         </div>
-        {isLive && (
-          <div style={{ color: tool.color, fontSize: 22, marginTop: 4, flexShrink:0 }}>→</div>
-        )}
+        {isLive
+          ? <span style={{fontFamily:C.mono,fontSize:11,fontWeight:700,color:color,background:colorBg,padding:"3px 10px",borderRadius:20,letterSpacing:"0.06em"}}>LIVE</span>
+          : <span style={{fontFamily:C.mono,fontSize:11,color:C.inkSoft,background:C.surface,padding:"3px 10px",borderRadius:20,letterSpacing:"0.06em"}}>COMING SOON</span>
+        }
       </div>
+      <h3 style={{fontFamily:C.serif, fontSize:22, fontWeight:800, color:C.ink, marginBottom:8}}>{tool.title}</h3>
+      <p style={{fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.65, marginBottom: isLive ? 20 : 0}}>{tool.tagline}</p>
+      {isLive && (
+        <div style={{display:"flex", alignItems:"center", gap:6, fontFamily:C.mono, fontSize:12, fontWeight:700, color:color}}>
+          View setup guide + script →
+        </div>
+      )}
     </div>
   );
 }
 
-// ── TOOL DETAIL (expanded) ────────────────────────────────────
+// ── TOOL DETAIL MODAL ──────────────────────────────────────────
 function ToolDetail({ tool, onClose, C }) {
+  const color = C[tool.colorKey];
+  const colorBg = C[tool.colorKey + "Light"];
   const [tab, setTab] = useState("setup");
 
   return (
     <div style={{
-      background: C.card,
-      border: `2px solid ${tool.color}`,
-      borderRadius: 16,
-      overflow: "hidden",
-    }}>
-      {/* Header */}
+      position:"fixed", inset:0, zIndex:100,
+      background:"rgba(0,0,0,0.6)", backdropFilter:"blur(4px)",
+      display:"flex", alignItems:"flex-start", justifyContent:"center",
+      padding:"32px 16px", overflowY:"auto",
+    }} onClick={e=>e.target===e.currentTarget && onClose()}>
       <div style={{
-        background: tool.color,
-        padding: "28px 36px",
-        display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+        background:C.card, borderRadius:18,
+        width:"100%", maxWidth:680,
+        border:"1.5px solid " + C.border,
+        boxShadow:"0 24px 80px rgba(0,0,0," + (C.isDark?0.6:0.2) + ")",
       }}>
-        <div>
-          <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:8 }}>
-            <span style={{ fontSize:28 }}>{tool.emoji}</span>
-            <span style={{
-              fontFamily: C.mono, fontSize: 11, fontWeight: 700,
-              background: "rgba(255,255,255,0.2)", color: "#fff",
-              padding: "2px 10px", borderRadius: 4,
-              letterSpacing: "0.08em", textTransform: "uppercase",
-            }}>{tool.tag}</span>
+        {/* Modal header */}
+        <div style={{
+          padding:"24px 32px 20px",
+          borderBottom:"1px solid " + C.border,
+          display:"flex", justifyContent:"space-between", alignItems:"center",
+        }}>
+          <div style={{display:"flex", alignItems:"center", gap:12}}>
+            <span style={{fontSize:28}}>{tool.emoji}</span>
+            <div>
+              <div style={{fontFamily:C.serif, fontSize:20, fontWeight:800, color:C.ink}}>{tool.title}</div>
+              <div style={{fontFamily:C.mono, fontSize:11, color:color, letterSpacing:"0.08em", textTransform:"uppercase", marginTop:2}}>{tool.tag}</div>
+            </div>
           </div>
-          <h2 style={{ fontFamily: C.serif, fontSize: 30, fontWeight: 800, color: "#fff", marginBottom: 6 }}>{tool.title}</h2>
-          <p style={{ fontFamily: C.sans, fontSize: 16, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>{tool.tagline}</p>
+          <button onClick={onClose} style={{
+            background:C.surface, border:"1px solid " + C.border,
+            borderRadius:8, padding:"6px 12px", cursor:"pointer",
+            fontFamily:C.mono, fontSize:12, color:C.inkSoft, fontWeight:700,
+          }}>✕ Close</button>
         </div>
-        <button onClick={onClose} style={{
-          background: "rgba(255,255,255,0.15)", border: "none",
-          color: "#fff", fontSize: 20, cursor: "pointer",
-          width: 36, height: 36, borderRadius: "50%",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          flexShrink: 0,
-        }}>✕</button>
-      </div>
 
-      {/* Tabs */}
-      <div style={{
-        display:"flex", gap:0,
-        borderBottom: `1px solid ${C.border}`,
-        background: C.surface,
-      }}>
-        {["setup","script"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            fontFamily: C.mono, fontSize: 12, fontWeight: 700,
-            padding: "14px 28px", border:"none", cursor:"pointer",
-            textTransform:"uppercase", letterSpacing:"0.1em",
-            background: tab === t ? C.card : "transparent",
-            color: tab === t ? tool.color : C.inkSoft,
-            borderBottom: tab === t ? `2px solid ${tool.color}` : "2px solid transparent",
-            transition: "all 0.15s",
-          }}>
-            {t === "setup" ? "📋 Setup Guide" : "⎘ App Script"}
-          </button>
-        ))}
-      </div>
+        {/* Tabs */}
+        <div style={{display:"flex", borderBottom:"1px solid " + C.border, padding:"0 32px"}}>
+          {["setup","script"].map(t=>(
+            <button key={t} onClick={()=>setTab(t)} style={{
+              fontFamily:C.mono, fontSize:12, fontWeight:700,
+              color: tab===t ? color : C.inkSoft,
+              background:"none", border:"none", cursor:"pointer",
+              padding:"14px 16px 12px",
+              borderBottom: tab===t ? "2px solid " + color : "2px solid transparent",
+              letterSpacing:"0.08em", textTransform:"uppercase",
+              transition:"color 0.15s",
+            }}>{t==="setup" ? "Setup Guide" : "Apps Script"}</button>
+          ))}
+        </div>
 
-      {/* Tab content */}
-      <div style={{ padding: "32px 36px" }}>
-
-        {tab === "setup" && (
-          <div>
-            {/* Problem / Solution */}
-            <div style={{
-              display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, marginBottom:32,
-            }}>
+        {/* Tab content */}
+        <div style={{padding:"28px 32px"}}>
+          {tab === "setup" ? (
+            <div>
               <div style={{
-                background: "#FFF8F7", border: `1px solid #F0D0CC`,
-                borderRadius:12, padding:"20px 24px",
+                background:colorBg, borderRadius:10,
+                padding:"16px 20px", marginBottom:24,
+                border:"1px solid " + color + "30",
               }}>
-                <div style={{ fontFamily:C.mono, fontSize:11, fontWeight:700, color:C.coral, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8 }}>⚠ The Problem</div>
-                <p style={{ fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.7 }}>{tool.problem}</p>
+                <div style={{fontFamily:C.sans, fontSize:14, fontWeight:700, color:color, marginBottom:4}}>What it does</div>
+                <div style={{fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.65}}>{tool.solution}</div>
               </div>
-              <div style={{
-                background: tool.colorBg, border: `1px solid ${tool.color}30`,
-                borderRadius:12, padding:"20px 24px",
-              }}>
-                <div style={{ fontFamily:C.mono, fontSize:11, fontWeight:700, color:tool.color, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8 }}>✓ The Solution</div>
-                <p style={{ fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.7 }}>{tool.solution}</p>
-              </div>
-            </div>
-
-            {/* Features */}
-            <div style={{ marginBottom:32 }}>
-              <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink, marginBottom:14 }}>What it does</h4>
-              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                {tool.features.map((f,i) => (
-                  <div key={i} style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
-                    <span style={{ color:tool.color, fontWeight:700, marginTop:2 }}>→</span>
-                    <span style={{ fontFamily:C.sans, fontSize:14, color:C.inkMid, lineHeight:1.6 }}>{f}</span>
+              <div style={{fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:12}}>Steps</div>
+              {tool.steps.map((s,i)=><StepCard key={i} step={s} color={color} C={C}/>)}
+              {tool.columns.length > 0 && (
+                <div style={{marginTop:24}}>
+                  <div style={{fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:12}}>Sheet columns</div>
+                  <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
+                    {tool.columns.map((col,i)=>(
+                      <span key={i} style={{
+                        fontFamily:C.mono, fontSize:12, color:C.inkMid,
+                        background:C.surface, border:"1px solid " + C.border,
+                        padding:"4px 10px", borderRadius:4,
+                      }}>{col}</span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Sheet structure */}
-            {tool.columns.length > 0 && (
-              <div style={{ marginBottom:32 }}>
-                <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink, marginBottom:14 }}>Sheet columns (auto-created)</h4>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                  {tool.columns.map((col,i) => (
-                    <span key={i} style={{
-                      fontFamily:C.mono, fontSize:12, fontWeight:500,
-                      background:C.surface, border:`1px solid ${C.border}`,
-                      borderRadius:4, padding:"4px 12px", color:C.inkMid,
-                    }}>{col}</span>
-                  ))}
                 </div>
-              </div>
-            )}
-
-            {/* Steps */}
-            {tool.steps.length > 0 && (
-              <div>
-                <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink, marginBottom:4 }}>Setup — {tool.steps.length} steps</h4>
-                <div>
-                  {tool.steps.map((s,i) => <StepCard key={i} step={s} color={tool.color} C={C} />)}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === "script" && (
-          <div>
-            <div style={{
-              display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16,
-            }}>
-              <div>
-                <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink }}>Google Apps Script</h4>
-                <p style={{ fontFamily:C.sans, fontSize:13, color:C.inkSoft, marginTop:4 }}>
-                  Extensions → Apps Script → paste → save (Ctrl+S) → run setupSheet()
-                </p>
-              </div>
-              <CopyBtn text={tool.script} label="Copy Script" C={C} />
+              )}
             </div>
-            <div style={{
-              background: "#1C1810",
-              borderRadius: 10,
-              padding: "24px 28px",
-              overflowX: "auto",
-              border: `1px solid ${C.borderDark}`,
-            }}>
+          ) : (
+            <div>
+              <div style={{marginBottom:16}}>
+                <CopyBtn text={tool.script} label="Copy Script" C={C}/>
+              </div>
               <pre style={{
-                fontFamily: C.mono,
-                fontSize: 12.5,
-                lineHeight: 1.75,
-                color: "#C8C0B0",
-                whiteSpace: "pre",
-                margin: 0,
+                background:C.isDark?"#0A0C0A":C.surface,
+                border:"1px solid " + C.border,
+                borderRadius:10, padding:"20px 24px",
+                fontFamily:C.mono, fontSize:12, color:C.inkMid,
+                lineHeight:1.65, overflowX:"auto",
+                maxHeight:400, overflowY:"auto",
+                whiteSpace:"pre-wrap", wordBreak:"break-word",
               }}>{tool.script}</pre>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ── MAIN APP ──────────────────────────────────────────────────
+// ── MAIN APP ───────────────────────────────────────────────────
 export default function App() {
   const [activeTool, setActiveTool] = useState(null);
-  const [mounted, setMounted] = useState(false);
-  const [dark, setDark] = useState(false);
-  const C = dark ? DARK_THEME : LIGHT_THEME;
-  useEffect(() => setMounted(true), []);
+  const [mounted,    setMounted]    = useState(false);
+  const [dark,       setDark]       = useState(false);
+  const C = dark ? DARK : LIGHT;
+  useEffect(()=>setMounted(true),[]);
 
-  const liveTool = TOOLS.find(t => t.id === activeTool);
-  const liveCount = TOOLS.filter(t => t.status === "live").length;
-  const comingCount = TOOLS.filter(t => t.status === "coming").length;
+  const liveTool    = TOOLS.find(t=>t.id===activeTool);
+  const liveCount   = TOOLS.filter(t=>t.status==="live").length;
+  const comingCount = TOOLS.filter(t=>t.status==="coming").length;
 
   return (
     <div style={{
-      fontFamily: C.sans,
-      background: C.bg,
-      minHeight: "100vh",
-      opacity: mounted ? 1 : 0,
-      transition: "opacity 0.4s ease, background 0.3s",
+      fontFamily:C.sans, background:C.bg, minHeight:"100vh",
+      opacity:mounted?1:0, transition:"opacity 0.4s ease, background 0.3s",
     }}>
-      <style>{`html,body,#root{background:` + C.bg + `!important;transition:background 0.3s;}`}</style>
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px 80px" }}>
+      <style>{"html,body,#root{background:" + C.bg + "!important;transition:background 0.3s;}*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}a{transition:opacity 0.2s;}::-webkit-scrollbar{width:4px;background:" + C.bg + ";}::-webkit-scrollbar-thumb{background:" + C.border + ";border-radius:2px;}"}</style>
 
-        {/* ── NAV ── */}
+      {liveTool && <ToolDetail tool={liveTool} onClose={()=>setActiveTool(null)} C={C}/>}
+
+      <div style={{maxWidth:860, margin:"0 auto", padding:"0 24px 80px"}}>
+
+        {/* NAV */}
         <div style={{
           display:"flex", justifyContent:"space-between", alignItems:"center",
-          padding:"22px 0", borderBottom:`1px solid ${C.border}`,
-          marginBottom:56,
+          padding:"22px 0", borderBottom:"1px solid " + C.border, marginBottom:56,
         }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:20 }}>⚙️</span>
-            <span style={{ fontFamily:C.serif, fontSize:18, fontWeight:800, color:C.ink }}>
+          <div style={{display:"flex", alignItems:"center", gap:10}}>
+            <span style={{fontSize:20}}>⚙️</span>
+            <span style={{fontFamily:C.serif, fontSize:18, fontWeight:800, color:C.ink}}>
               Startup Ops Toolkit
             </span>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <a
-              href="https://nikhil-thomas-a.github.io/portfolio/"
+          <div style={{display:"flex", alignItems:"center", gap:10}}>
+            <a href="https://nikhil-thomas-a.github.io/portfolio/"
               target="_blank" rel="noopener noreferrer"
-              style={{
-                fontFamily:C.mono, fontSize:11, fontWeight:700, color:C.green,
+              style={{fontFamily:C.mono, fontSize:11, fontWeight:700, color:C.green,
                 textDecoration:"none", letterSpacing:"0.08em",
-                border:`1px solid ${C.green}40`, padding:"5px 12px", borderRadius:6,
-              }}
-            >← Portfolio</a>
-            <a
-              href="https://www.linkedin.com/in/nikhil-thomas-a-58538117a/"
+                border:"1px solid " + C.green + "40", padding:"5px 12px", borderRadius:6}}>
+              ← Portfolio
+            </a>
+            <a href="https://www.linkedin.com/in/nikhil-thomas-a-58538117a/"
               target="_blank" rel="noopener noreferrer"
-              style={{
-                fontFamily:C.mono, fontSize:11, color:C.inkSoft,
+              style={{fontFamily:C.mono, fontSize:11, color:C.inkSoft,
                 textDecoration:"none", letterSpacing:"0.08em",
-                display:"flex", alignItems:"center", gap:6,
-              }}
-            >
+                display:"flex", alignItems:"center", gap:6}}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill={C.inkSoft}><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
               Nikhil Thomas A
             </a>
-            <button onClick={() => setDark(!dark)} style={{
-              background: C.surface, border:`1px solid ${C.border}`,
-              borderRadius:7, padding:"6px 13px", cursor:"pointer",
+            <button onClick={()=>setDark(!dark)} style={{
+              background:C.surface, border:"1px solid " + C.border,
+              borderRadius:7, padding:"6px 12px", cursor:"pointer",
               display:"flex", alignItems:"center", gap:6,
-              color: C.inkSoft, fontSize:11, fontFamily:C.mono,
+              color:C.inkSoft, fontSize:11, fontFamily:C.mono,
               fontWeight:700, letterSpacing:"0.06em", transition:"all 0.2s",
-            }}>
-              {dark ? "☀ Light" : "🌙 Dark"}
-            </button>
+            }}>{dark ? "☀ Light" : "🌙 Dark"}</button>
           </div>
         </div>
 
-        {/* ── HERO ── */}
-        <div style={{ marginBottom: 64 }}>
+        {/* HERO */}
+        <div style={{marginBottom:64}}>
           <div style={{
             fontFamily:C.mono, fontSize:12, fontWeight:700,
             color:C.green, letterSpacing:"0.16em", textTransform:"uppercase",
-            marginBottom:20,
-            display:"flex", alignItems:"center", gap:8,
+            marginBottom:20, display:"flex", alignItems:"center", gap:8,
           }}>
-            <span style={{ display:"inline-block", width:28, height:2, background:C.green, borderRadius:1 }} />
+            <span style={{display:"inline-block", width:28, height:2, background:C.green, borderRadius:1}}/>
             Google Workspace Automations
           </div>
-
           <h1 style={{
-            fontFamily: C.serif,
-            fontSize: "clamp(44px, 7vw, 72px)",
-            fontWeight: 900,
-            lineHeight: 1.0,
-            letterSpacing: "-0.02em",
-            color: C.ink,
-            marginBottom: 24,
+            fontFamily:C.serif, fontSize:"clamp(44px,7vw,72px)",
+            fontWeight:900, lineHeight:1.0, letterSpacing:"-0.02em",
+            color:C.ink, marginBottom:20,
           }}>
-            Real tools for<br />
-            <em style={{ color: C.green }}>startup ops.</em>
+            Startup Ops<br/>
+            <em style={{color:C.green, fontStyle:"italic"}}>Toolkit.</em>
           </h1>
-
           <p style={{
-            fontFamily: C.sans,
-            fontSize: 18,
-            lineHeight: 1.75,
-            color: C.inkMid,
-            maxWidth: 560,
-            marginBottom: 40,
+            fontFamily:C.sans, fontSize:17, color:C.inkMid,
+            lineHeight:1.8, maxWidth:540, marginBottom:32,
           }}>
-            Google Sheets templates and Apps Script automations that replace manual
-            workflows. Copy, paste, run. Built by a Fractional Head of Data for
-            early-stage teams who move fast.
+            Google Sheets + Apps Script templates for early-stage teams.
+            No paid tools, no integrations — just scripts you copy, paste, and own.
           </p>
-
-          {/* Stats row */}
-          <div style={{ display:"flex", gap:32, flexWrap:"wrap" }}>
-            {[
-              { n: liveCount,      label:"Tools live now" },
-              { n: comingCount,    label:"In the pipeline" },
-              { n:"0",             label:"Cost. Fully free." },
-            ].map((s,i) => (
-              <div key={i}>
-                <div style={{ fontFamily:C.serif, fontSize:40, fontWeight:800, color:C.green, lineHeight:1 }}>{s.n}</div>
-                <div style={{ fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.08em", textTransform:"uppercase", marginTop:4 }}>{s.label}</div>
-              </div>
-            ))}
+          <div style={{display:"flex", gap:20, flexWrap:"wrap"}}>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontFamily:C.serif, fontSize:36, fontWeight:900, color:C.green}}>{liveCount}</div>
+              <div style={{fontFamily:C.mono, fontSize:10, color:C.inkSoft, textTransform:"uppercase", letterSpacing:"0.1em", marginTop:2}}>Live now</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontFamily:C.serif, fontSize:36, fontWeight:900, color:C.inkMid}}>{comingCount}</div>
+              <div style={{fontFamily:C.mono, fontSize:10, color:C.inkSoft, textTransform:"uppercase", letterSpacing:"0.1em", marginTop:2}}>Coming soon</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontFamily:C.serif, fontSize:36, fontWeight:900, color:C.amber}}>0</div>
+              <div style={{fontFamily:C.mono, fontSize:10, color:C.inkSoft, textTransform:"uppercase", letterSpacing:"0.1em", marginTop:2}}>Cost</div>
+            </div>
           </div>
         </div>
 
-        {/* ── CROSSLINK ── */}
+        {/* DIVIDER */}
+        <div style={{display:"flex", alignItems:"center", gap:16, marginBottom:32}}>
+          <div style={{flex:1, height:1, background:C.border}}/>
+          <span style={{fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.12em", textTransform:"uppercase"}}>The Toolkit</span>
+          <div style={{flex:1, height:1, background:C.border}}/>
+        </div>
+
+        {/* TOOL GRID */}
+        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:20, marginBottom:64}}>
+          {TOOLS.map(t=>(
+            <ToolCard key={t.id} tool={t} C={C} onOpen={()=>setActiveTool(t.id)}/>
+          ))}
+        </div>
+
+        {/* ABOUT */}
         <div style={{
-          background: C.isDark ? "#1C1810" : C.ink,
-          borderRadius: 12,
-          padding: "18px 24px",
-          display:"flex", justifyContent:"space-between", alignItems:"center",
-          flexWrap:"wrap", gap:12,
-          marginBottom: 56,
+          background:C.surface, borderRadius:16,
+          border:"1px solid " + C.border,
+          padding:"36px 40px", marginBottom:48,
         }}>
-          <div>
-            <span style={{ fontFamily:C.mono, fontSize:11, color: C.isDark ? "#7A6A5A" : "#9A9890", letterSpacing:"0.1em", textTransform:"uppercase" }}>
-              Also by Nikhil →
-            </span>
-            <span style={{ fontFamily:C.sans, fontSize:15, color: C.isDark ? "#C8C0B0" : "#E8E4DC", marginLeft:10 }}>
-              PM AI Hub — 13 AI prompts for Delivery PMs
-            </span>
+          <div style={{fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:16}}>
+            Why this toolkit exists
           </div>
-          <a
-            href="https://nikhil-thomas-a.github.io/pm-ai-hub/"
+          <p style={{fontFamily:C.sans, fontSize:16, color:C.inkMid, lineHeight:1.8, marginBottom:24}}>
+            Every early-stage team I've worked with wastes hours on the same operational tasks —
+            personalised outreach, document generation, reporting. These are solved problems.
+            This toolkit packages the patterns I've seen repeated across dozens of startups — no paid tools,
+            no integrations, just Apps Script that you own entirely.
+          </p>
+          <a href="https://www.linkedin.com/in/nikhil-thomas-a-58538117a/"
             target="_blank" rel="noopener noreferrer"
             style={{
+              display:"inline-flex", alignItems:"center", gap:8,
               fontFamily:C.mono, fontSize:12, fontWeight:700,
-              color:"#E5484D", textDecoration:"none",
-              border:"1px solid rgba(229,72,77,0.3)",
-              padding:"6px 16px", borderRadius:6,
-              letterSpacing:"0.06em",
-            }}
-          >Visit PM AI Hub →</a>
+              color:C.ink, textDecoration:"none",
+              border:"1.5px solid " + C.borderDark,
+              padding:"10px 20px", borderRadius:8, letterSpacing:"0.06em",
+            }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={C.ink}><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            Connect with Nikhil Thomas A
+          </a>
         </div>
 
-        {/* ── TOOLS SECTION ── */}
-        <div>
-          <h2 style={{
-            fontFamily: C.serif, fontSize: 32, fontWeight: 800,
-            color: C.ink, marginBottom: 8,
-          }}>The Toolkit</h2>
-          <p style={{ fontFamily:C.sans, fontSize:15, color:C.inkSoft, marginBottom:32 }}>
-            Click any live tool to see the full setup guide and App Script.
-          </p>
-
-          {/* Active tool detail */}
-          {liveTool && (
-            <div style={{ marginBottom:24 }}>
-              <ToolDetail tool={liveTool} onClose={() => setActiveTool(null)} C={C} />
-            </div>
-          )}
-
-          {/* Tool cards grid */}
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            {TOOLS.filter(t => t.id !== activeTool).map(tool => (
-              <ToolCard
-                key={tool.id}
-                tool={tool}
-                C={C}
-                onOpen={() => {
-                  setActiveTool(tool.id);
-                  setTimeout(() => window.scrollTo({ top: 0, behavior:"smooth" }), 50);
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* ── ABOUT ── */}
+        {/* FOOTER */}
         <div style={{
-          marginTop:64, paddingTop:40,
-          borderTop:`1px solid ${C.border}`,
-        }}>
-          <div style={{
-            background: C.card,
-            border:`1.5px solid ${C.border}`,
-            borderRadius:14, padding:"32px 36px",
-          }}>
-            <div style={{ fontFamily:C.mono, fontSize:11, fontWeight:700, color:C.green, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>
-              About this project
-            </div>
-            <h3 style={{ fontFamily:C.serif, fontSize:24, fontWeight:800, color:C.ink, marginBottom:12 }}>
-              Built for the ops person who wears too many hats.
-            </h3>
-            <p style={{ fontFamily:C.sans, fontSize:15, color:C.inkMid, lineHeight:1.8, marginBottom:20 }}>
-              Early-stage startups run on Google Workspace. Sheets for everything, Docs for contracts,
-              Gmail for outreach. Most of it is manual, repetitive, and error-prone. These tools automate
-              the patterns I've seen repeated across dozens of startups — no paid tools, no integrations,
-              just Apps Script that you own entirely.
-            </p>
-            <a
-              href="https://www.linkedin.com/in/nikhil-thomas-a-58538117a/"
-              target="_blank" rel="noopener noreferrer"
-              style={{
-                display:"inline-flex", alignItems:"center", gap:8,
-                fontFamily:C.mono, fontSize:12, fontWeight:700,
-                color:C.ink, textDecoration:"none",
-                border:`1.5px solid ${C.borderDark}`,
-                padding:"10px 20px", borderRadius:8,
-                letterSpacing:"0.06em",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={C.ink}><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-              Connect with Nikhil Thomas A
-            </a>
-          </div>
-        </div>
-
-        {/* ── FOOTER ── */}
-        <div style={{
-          marginTop:48, paddingTop:24,
-          borderTop:`1px solid ${C.border}`,
+          paddingTop:24, borderTop:"1px solid " + C.border,
           display:"flex", justifyContent:"space-between", alignItems:"center",
           flexWrap:"wrap", gap:12,
         }}>
-          <span style={{ fontFamily:C.serif, fontSize:16, fontWeight:800, color:C.ink }}>
+          <span style={{fontFamily:C.serif, fontSize:16, fontWeight:800, color:C.ink}}>
             Startup Ops Toolkit
           </span>
-          <div style={{ display:"flex", gap:16, alignItems:"center", flexWrap:"wrap" }}>
-            <a href="https://nikhil-thomas-a.github.io/portfolio/" target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily:C.mono, fontSize:11, color:C.inkSoft, textDecoration:"none", letterSpacing:"0.06em" }}>
+          <div style={{display:"flex", gap:16, alignItems:"center", flexWrap:"wrap"}}>
+            <a href="https://nikhil-thomas-a.github.io/portfolio/"
+              target="_blank" rel="noopener noreferrer"
+              style={{fontFamily:C.mono, fontSize:11, color:C.inkSoft, textDecoration:"none", letterSpacing:"0.06em"}}>
               Built by Nikhil Thomas A
             </a>
-            <span style={{ color:C.border }}>·</span>
-            <a href="https://nikhil-thomas-a.github.io/pm-ai-hub/" target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily:C.mono, fontSize:11, color:C.inkSoft, textDecoration:"none", letterSpacing:"0.06em" }}>
+            <span style={{color:C.border}}>·</span>
+            <a href="https://nikhil-thomas-a.github.io/pm-ai-hub/"
+              target="_blank" rel="noopener noreferrer"
+              style={{fontFamily:C.mono, fontSize:11, color:C.inkSoft, textDecoration:"none", letterSpacing:"0.06em"}}>
               PM AI Hub
             </a>
-            <span style={{ color:C.border }}>·</span>
-            <span style={{ fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.06em" }}>Free forever</span>
+            <span style={{color:C.border}}>·</span>
+            <span style={{fontFamily:C.mono, fontSize:11, color:C.inkSoft, letterSpacing:"0.06em"}}>Free forever</span>
           </div>
         </div>
 
