@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
-// ── THEME ─────────────────────────────────────────────────────
-const C = {
+// ── THEMES ────────────────────────────────────────────────────
+const LIGHT_THEME = {
   bg:         "#F5F2EC",
   surface:    "#EDE8DF",
   card:       "#FFFFFF",
@@ -19,6 +19,31 @@ const C = {
   blueLight:  "#EAF0FA",
   coral:      "#C8402A",
   coralLight: "#FAEAE7",
+  isDark:     false,
+  mono:       "'DM Mono', monospace",
+  serif:      "'Playfair Display', serif",
+  sans:       "'DM Sans', sans-serif",
+};
+
+const DARK_THEME = {
+  bg:         "#111210",
+  surface:    "#1C1E1A",
+  card:       "#232620",
+  border:     "#2E3028",
+  borderDark: "#3E4238",
+  ink:        "#E8E4DC",
+  inkMid:     "#A8A49C",
+  inkSoft:    "#6A6860",
+  green:      "#2EAB68",
+  greenLight: "#0D2A1C",
+  greenDim:   "rgba(46,171,104,0.12)",
+  amber:      "#E89A20",
+  amberLight: "#2A1E08",
+  blue:       "#4A8AE8",
+  blueLight:  "#0A1828",
+  coral:      "#E85A40",
+  coralLight: "#2A0F08",
+  isDark:     true,
   mono:       "'DM Mono', monospace",
   serif:      "'Playfair Display', serif",
   sans:       "'DM Sans', sans-serif",
@@ -417,7 +442,7 @@ const TOOLS = [
 ];
 
 // ── COPY BUTTON ───────────────────────────────────────────────
-function CopyBtn({ text, label = "Copy Script", size = 14 }) {
+function CopyBtn({ text, label = "Copy Script", size = 14, C }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(text);
@@ -440,7 +465,7 @@ function CopyBtn({ text, label = "Copy Script", size = 14 }) {
 }
 
 // ── STEP CARD ─────────────────────────────────────────────────
-function StepCard({ step, color }) {
+function StepCard({ step, color, C }) {
   return (
     <div style={{
       display: "flex", gap: 16, alignItems: "flex-start",
@@ -463,7 +488,7 @@ function StepCard({ step, color }) {
 }
 
 // ── TOOL CARD (collapsed) ─────────────────────────────────────
-function ToolCard({ tool, onOpen }) {
+function ToolCard({ tool, onOpen, C }) {
   const isLive = tool.status === "live";
   return (
     <div
@@ -534,7 +559,7 @@ function ToolCard({ tool, onOpen }) {
 }
 
 // ── TOOL DETAIL (expanded) ────────────────────────────────────
-function ToolDetail({ tool, onClose }) {
+function ToolDetail({ tool, onClose, C }) {
   const [tab, setTab] = useState("setup");
 
   return (
@@ -652,7 +677,7 @@ function ToolDetail({ tool, onClose }) {
               <div>
                 <h4 style={{ fontFamily:C.serif, fontSize:18, fontWeight:700, color:C.ink, marginBottom:4 }}>Setup — {tool.steps.length} steps</h4>
                 <div>
-                  {tool.steps.map((s,i) => <StepCard key={i} step={s} color={tool.color} />)}
+                  {tool.steps.map((s,i) => <StepCard key={i} step={s} color={tool.color} C={C} />)}
                 </div>
               </div>
             )}
@@ -670,7 +695,7 @@ function ToolDetail({ tool, onClose }) {
                   Extensions → Apps Script → paste → save (Ctrl+S) → run setupSheet()
                 </p>
               </div>
-              <CopyBtn text={tool.script} label="Copy Script" />
+              <CopyBtn text={tool.script} label="Copy Script" C={C} />
             </div>
             <div style={{
               background: "#1C1810",
@@ -699,6 +724,8 @@ function ToolDetail({ tool, onClose }) {
 export default function App() {
   const [activeTool, setActiveTool] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [dark, setDark] = useState(false);
+  const C = dark ? DARK_THEME : LIGHT_THEME;
   useEffect(() => setMounted(true), []);
 
   const liveTool = TOOLS.find(t => t.id === activeTool);
@@ -711,8 +738,9 @@ export default function App() {
       background: C.bg,
       minHeight: "100vh",
       opacity: mounted ? 1 : 0,
-      transition: "opacity 0.4s ease",
+      transition: "opacity 0.4s ease, background 0.3s",
     }}>
+      <style>{`html,body,#root{background:${C.bg}!important;transition:background 0.3s;}`}</style>
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px 80px" }}>
 
         {/* ── NAV ── */}
@@ -749,6 +777,15 @@ export default function App() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill={C.inkSoft}><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
               Nikhil Thomas A
             </a>
+            <button onClick={() => setDark(!dark)} style={{
+              background: C.surface, border:`1px solid ${C.border}`,
+              borderRadius:7, padding:"6px 13px", cursor:"pointer",
+              display:"flex", alignItems:"center", gap:6,
+              color: C.inkSoft, fontSize:11, fontFamily:C.mono,
+              fontWeight:700, letterSpacing:"0.06em", transition:"all 0.2s",
+            }}>
+              {dark ? "☀ Light" : "🌙 Dark"}
+            </button>
           </div>
         </div>
 
@@ -807,7 +844,7 @@ export default function App() {
 
         {/* ── CROSSLINK ── */}
         <div style={{
-          background: "#1C1810",
+          background: C.isDark ? "#1C1810" : C.ink,
           borderRadius: 12,
           padding: "18px 24px",
           display:"flex", justifyContent:"space-between", alignItems:"center",
@@ -815,10 +852,10 @@ export default function App() {
           marginBottom: 56,
         }}>
           <div>
-            <span style={{ fontFamily:C.mono, fontSize:11, color:"#7A6A5A", letterSpacing:"0.1em", textTransform:"uppercase" }}>
+            <span style={{ fontFamily:C.mono, fontSize:11, color: C.isDark ? "#7A6A5A" : "#9A9890", letterSpacing:"0.1em", textTransform:"uppercase" }}>
               Also by Nikhil →
             </span>
-            <span style={{ fontFamily:C.sans, fontSize:15, color:"#C8C0B0", marginLeft:10 }}>
+            <span style={{ fontFamily:C.sans, fontSize:15, color: C.isDark ? "#C8C0B0" : "#E8E4DC", marginLeft:10 }}>
               PM AI Hub — 13 AI prompts for Delivery PMs
             </span>
           </div>
@@ -848,7 +885,7 @@ export default function App() {
           {/* Active tool detail */}
           {liveTool && (
             <div style={{ marginBottom:24 }}>
-              <ToolDetail tool={liveTool} onClose={() => setActiveTool(null)} />
+              <ToolDetail tool={liveTool} onClose={() => setActiveTool(null)} C={C} />
             </div>
           )}
 
@@ -858,6 +895,7 @@ export default function App() {
               <ToolCard
                 key={tool.id}
                 tool={tool}
+                C={C}
                 onOpen={() => {
                   setActiveTool(tool.id);
                   setTimeout(() => window.scrollTo({ top: 0, behavior:"smooth" }), 50);
