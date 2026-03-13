@@ -431,7 +431,7 @@ function wowArrow(current, previous, direction) {
   const good = direction === "up" ? positive : !positive;
   const arrow = positive ? "▲" : "▼";
   const color = good ? "#166534" : "#991b1b";
-  return ` <span style="color:${color};font-size:12px;">${arrow} ${Math.abs(pct)}%</span>`;
+  return \` <span style="color:\${color};font-size:12px;">\${arrow} \${Math.abs(pct)}%</span>\`;
 }
 
 // ── SETUP: Create sheet structure ──────────────────────────────
@@ -477,7 +477,7 @@ function setWeeklyTrigger() {
     .create();
 
   SpreadsheetApp.getUi().alert(
-    `✅ Trigger set!\n\nKPI digest will send every ${CONFIG.triggerDay} at ${CONFIG.triggerHour}:00.`
+    \`✅ Trigger set!\n\nKPI digest will send every \${CONFIG.triggerDay} at \${CONFIG.triggerHour}:00.\`
   );
 }
 
@@ -521,39 +521,39 @@ function sendWeeklyKPIEmail() {
     else if (rag === "amber") amberCount++;
     else if (rag === "red") redCount++;
 
-    kpiRowsHtml += `
+    kpiRowsHtml += \`
       <tr style="border-bottom:1px solid #f3f4f6;">
-        <td style="padding:12px 16px;font-size:14px;color:#374151;font-weight:500;">${kpi.name}</td>
-        <td style="padding:12px 16px;font-size:16px;font-weight:700;color:#111827;">${currFmt}${arrow}</td>
-        <td style="padding:12px 16px;font-size:13px;color:#6b7280;">${tgtFmt ? "Target: " + tgtFmt : "—"}</td>
+        <td style="padding:12px 16px;font-size:14px;color:#374151;font-weight:500;">\${kpi.name}</td>
+        <td style="padding:12px 16px;font-size:16px;font-weight:700;color:#111827;">\${currFmt}\${arrow}</td>
+        <td style="padding:12px 16px;font-size:13px;color:#6b7280;">\${tgtFmt ? "Target: " + tgtFmt : "—"}</td>
         <td style="padding:12px 16px;">
-          <span style="display:inline-flex;align-items:center;gap:6px;background:${rc.bg};border:1px solid ${rc.border};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;color:${rc.dot};">
-            <span style="width:7px;height:7px;background:${rc.dot};border-radius:50%;display:inline-block;"></span>
-            ${rc.label}
+          <span style="display:inline-flex;align-items:center;gap:6px;background:\${rc.bg};border:1px solid \${rc.border};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;color:\${rc.dot};">
+            <span style="width:7px;height:7px;background:\${rc.dot};border-radius:50%;display:inline-block;"></span>
+            \${rc.label}
           </span>
         </td>
-      </tr>`;
+      </tr>\`;
   });
 
   // ── Build summary bar ────────────────────────────────────────
-  const summaryHtml = `
+  const summaryHtml = \`
     <div style="display:flex;gap:12px;margin:16px 0 24px;">
       <div style="flex:1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;text-align:center;">
-        <div style="font-size:24px;font-weight:700;color:#16a34a;">${greenCount}</div>
+        <div style="font-size:24px;font-weight:700;color:#16a34a;">\${greenCount}</div>
         <div style="font-size:11px;color:#166534;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">On Track</div>
       </div>
       <div style="flex:1;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;text-align:center;">
-        <div style="font-size:24px;font-weight:700;color:#d97706;">${amberCount}</div>
+        <div style="font-size:24px;font-weight:700;color:#d97706;">\${amberCount}</div>
         <div style="font-size:11px;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Watch</div>
       </div>
       <div style="flex:1;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;text-align:center;">
-        <div style="font-size:24px;font-weight:700;color:#dc2626;">${redCount}</div>
+        <div style="font-size:24px;font-weight:700;color:#dc2626;">\${redCount}</div>
         <div style="font-size:11px;color:#991b1b;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Off Track</div>
       </div>
-    </div>`;
+    </div>\`;
 
   // ── Full HTML email ──────────────────────────────────────────
-  const htmlBody = `
+  const htmlBody = \`
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -565,7 +565,7 @@ function sendWeeklyKPIEmail() {
       <div style="font-size:12px;color:#93c5fd;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">
         Weekly KPI Digest
       </div>
-      <div style="font-size:24px;font-weight:800;color:#ffffff;">${weekLabel}</div>
+      <div style="font-size:24px;font-weight:800;color:#ffffff;">\${weekLabel}</div>
     </div>
 
     <!-- Summary -->
@@ -573,7 +573,7 @@ function sendWeeklyKPIEmail() {
       <div style="font-size:13px;font-weight:600;color:#6b7280;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">
         At a Glance
       </div>
-      ${summaryHtml}
+      \${summaryHtml}
     </div>
 
     <!-- KPI Table -->
@@ -590,7 +590,7 @@ function sendWeeklyKPIEmail() {
             <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Status</th>
           </tr>
         </thead>
-        <tbody>${kpiRowsHtml}</tbody>
+        <tbody>\${kpiRowsHtml}</tbody>
       </table>
     </div>
 
@@ -603,7 +603,7 @@ function sendWeeklyKPIEmail() {
     </div>
   </div>
 </body>
-</html>`;
+</html>\`;
 
   // ── Send to all recipients ───────────────────────────────────
   const subject = CONFIG.subject.replace("{{WEEK}}", weekLabel);
@@ -611,7 +611,7 @@ function sendWeeklyKPIEmail() {
     MailApp.sendEmail({ to: email, subject, htmlBody, name: CONFIG.emailSender });
   });
 
-  Logger.log(`✅ KPI digest sent for ${weekLabel} to ${CONFIG.recipients.join(", ")}`);
+  Logger.log(\`✅ KPI digest sent for \${weekLabel} to \${CONFIG.recipients.join(", ")}\`);
 }
 
 // ── MENU: Add to Sheet UI ──────────────────────────────────────
@@ -625,6 +625,7 @@ function onOpen() {
     .addToUi();
 }`;
 
+// ── TOOLS DATA
 // ── TOOLS DATA (plain colour strings, no theme refs) ───────────
 const TOOLS = [
   {
