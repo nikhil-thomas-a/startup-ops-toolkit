@@ -457,7 +457,7 @@ function setupSheet() {
   sheet.autoResizeColumns(1, headers.length);
 
   SpreadsheetApp.getUi().alert(
-    "✅ Sheet ready!\n\nFill in your KPI data each week.\nRun setWeeklyTrigger() to schedule automatic Monday sends."
+    "✅ Sheet created. Fill in your KPI data and run setWeeklyTrigger() to schedule Monday sends."
   );
 }
 
@@ -477,7 +477,7 @@ function setWeeklyTrigger() {
     .create();
 
   SpreadsheetApp.getUi().alert(
-    \`✅ Trigger set!\n\nKPI digest will send every \${CONFIG.triggerDay} at \${CONFIG.triggerHour}:00.\`
+    "KPI digest will send every " + CONFIG.triggerDay + " at " + CONFIG.triggerHour + ":00."
   );
 }
 
