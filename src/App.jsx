@@ -323,6 +323,308 @@ function onOpen() {
     .addToUi();
 }`;
 
+
+// ── KPI EMAILER APP SCRIPT ────────────────────────────────────
+const KPI_SCRIPT = `/**
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║   STARTUP OPS TOOLKIT — Weekly KPI Emailer                  ║
+ * ║   Built by Nikhil Thomas A                                  ║
+ * ║   nikhil-thomas-a.github.io/startup-ops-toolkit             ║
+ * ╚══════════════════════════════════════════════════════════════╝
+ *
+ * WHAT IT DOES:
+ *   Every Monday morning, this script reads the latest week's KPIs
+ *   from your Google Sheet, compares them to the prior week,
+ *   and sends a clean HTML digest to your team automatically.
+ *
+ * SETUP (one-time, ~10 minutes):
+ *   1. Open your Google Sheet
+ *   2. Go to Extensions → Apps Script
+ *   3. Paste this entire script, save (Ctrl+S)
+ *   4. Edit CONFIG below — add your email, KPI names, targets
+ *   5. Run setupSheet() once to create the sheet structure
+ *   6. Run setWeeklyTrigger() once to schedule Monday 8am sends
+ *   7. Fill in your KPI data each week — email sends automatically
+ *
+ * SHEET STRUCTURE (auto-created by setupSheet):
+ *   Column A: Week (e.g. "2025-W01")
+ *   Column B: Week Start Date
+ *   Columns C+: Your KPIs (configured below)
+ */
+
+// ── CONFIGURATION — edit this section ─────────────────────────
+const CONFIG = {
+
+  // ── Email settings ──────────────────────────────────────────
+  recipients:  ["you@company.com", "ceo@company.com"],  // Who gets the digest
+  emailSender: "Weekly KPI Digest",                      // Display name
+  subject:     "📊 Weekly KPI Digest — {{WEEK}}",        // {{WEEK}} auto-filled
+
+  // ── Your KPIs ───────────────────────────────────────────────
+  // Add or remove metrics as needed.
+  // direction: "up" = higher is better, "down" = lower is better
+  // target: optional — shows as benchmark in the email
+  // format: "number", "percent", "currency", "decimal"
+  kpis: [
+    { name: "New Signups",         column: "C", direction: "up",   target: 50,   format: "number"   },
+    { name: "Active Users",        column: "D", direction: "up",   target: 200,  format: "number"   },
+    { name: "Churn Rate",          column: "E", direction: "down", target: 2.0,  format: "percent"  },
+    { name: "MRR (£)",             column: "F", direction: "up",   target: 5000, format: "currency" },
+    { name: "Support Tickets",     column: "G", direction: "down", target: 20,   format: "number"   },
+    { name: "Avg Response Time",   column: "H", direction: "down", target: 4.0,  format: "decimal"  },
+  ],
+
+  // ── Trigger settings ────────────────────────────────────────
+  triggerDay:  "MONDAY",   // Day to send (MONDAY, TUESDAY, etc.)
+  triggerHour: 8,          // Hour to send (24h, e.g. 8 = 8:00am)
+  timezone:    "Europe/London",  // Your timezone
+
+  sheetName: "KPI Tracker",  // Sheet tab name
+};
+
+// ── HELPERS ────────────────────────────────────────────────────
+function colIndex(letter) {
+  return letter.toUpperCase().charCodeAt(0) - 65; // A=0, B=1, C=2...
+}
+
+function formatValue(val, fmt) {
+  if (val === "" || val === null || val === undefined) return "—";
+  const n = parseFloat(val);
+  if (isNaN(n)) return val;
+  switch (fmt) {
+    case "percent":  return n.toFixed(1) + "%";
+    case "currency": return "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 0 });
+    case "decimal":  return n.toFixed(1);
+    default:         return Math.round(n).toLocaleString("en-GB");
+  }
+}
+
+function ragStatus(current, previous, target, direction) {
+  const curr = parseFloat(current);
+  if (isNaN(curr)) return "grey";
+
+  // Week-on-week change
+  const prev = parseFloat(previous);
+  let wowOk = true;
+  if (!isNaN(prev) && prev !== 0) {
+    const change = (curr - prev) / Math.abs(prev);
+    wowOk = direction === "up" ? change >= -0.05 : change <= 0.05;
+  }
+
+  // vs target
+  let targetOk = true;
+  if (target !== null && target !== undefined) {
+    targetOk = direction === "up" ? curr >= target * 0.9 : curr <= target * 1.1;
+  }
+
+  if (wowOk && targetOk) return "green";
+  if (!wowOk && !targetOk) return "red";
+  return "amber";
+}
+
+function wowArrow(current, previous, direction) {
+  const curr = parseFloat(current);
+  const prev = parseFloat(previous);
+  if (isNaN(curr) || isNaN(prev) || prev === 0) return "";
+  const pct = ((curr - prev) / Math.abs(prev) * 100).toFixed(1);
+  const positive = parseFloat(pct) > 0;
+  const good = direction === "up" ? positive : !positive;
+  const arrow = positive ? "▲" : "▼";
+  const color = good ? "#166534" : "#991b1b";
+  return ` <span style="color:${color};font-size:12px;">${arrow} ${Math.abs(pct)}%</span>`;
+}
+
+// ── SETUP: Create sheet structure ──────────────────────────────
+function setupSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.sheetName);
+  if (!sheet) sheet = ss.insertSheet(CONFIG.sheetName);
+
+  // Build header row
+  const headers = ["Week", "Week Start"];
+  CONFIG.kpis.forEach(k => headers.push(k.name));
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setValues([headers]);
+  headerRange.setBackground("#1A4A8A");
+  headerRange.setFontColor("#FFFFFF");
+  headerRange.setFontWeight("bold");
+
+  // Add a sample data row
+  const sampleRow = ["2025-W01", new Date()];
+  CONFIG.kpis.forEach(k => sampleRow.push(""));
+  sheet.getRange(2, 1, 1, sampleRow.length).setValues([sampleRow]);
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumns(1, headers.length);
+
+  SpreadsheetApp.getUi().alert(
+    "✅ Sheet ready!\n\nFill in your KPI data each week.\nRun setWeeklyTrigger() to schedule automatic Monday sends."
+  );
+}
+
+// ── TRIGGER: Schedule Monday sends ────────────────────────────
+function setWeeklyTrigger() {
+  // Delete existing triggers first to avoid duplicates
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === "sendWeeklyKPIEmail") {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+
+  ScriptApp.newTrigger("sendWeeklyKPIEmail")
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay[CONFIG.triggerDay])
+    .atHour(CONFIG.triggerHour)
+    .create();
+
+  SpreadsheetApp.getUi().alert(
+    `✅ Trigger set!\n\nKPI digest will send every ${CONFIG.triggerDay} at ${CONFIG.triggerHour}:00.`
+  );
+}
+
+// ── MAIN: Build and send the email ────────────────────────────
+function sendWeeklyKPIEmail() {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.sheetName);
+  const data  = sheet.getDataRange().getValues();
+
+  if (data.length < 2) {
+    Logger.log("No data rows found — skipping send.");
+    return;
+  }
+
+  const latest   = data[data.length - 1];       // Most recent week
+  const previous = data.length > 2 ? data[data.length - 2] : null;  // Prior week
+  const weekLabel = latest[0] || "This Week";
+
+  // ── Build KPI rows HTML ──────────────────────────────────────
+  const ragColors = {
+    green: { bg: "#f0fdf4", border: "#bbf7d0", dot: "#16a34a", label: "On Track"  },
+    amber: { bg: "#fffbeb", border: "#fde68a", dot: "#d97706", label: "Watch"     },
+    red:   { bg: "#fef2f2", border: "#fecaca", dot: "#dc2626", label: "Off Track" },
+    grey:  { bg: "#f9fafb", border: "#e5e7eb", dot: "#9ca3af", label: "No Data"   },
+  };
+
+  let kpiRowsHtml = "";
+  let greenCount = 0, amberCount = 0, redCount = 0;
+
+  CONFIG.kpis.forEach(kpi => {
+    const ci      = colIndex(kpi.column);
+    const curr    = latest[ci];
+    const prev    = previous ? previous[ci] : null;
+    const rag     = ragStatus(curr, prev, kpi.target, kpi.direction);
+    const rc      = ragColors[rag];
+    const arrow   = wowArrow(curr, prev, kpi.direction);
+    const currFmt = formatValue(curr, kpi.format);
+    const tgtFmt  = kpi.target ? formatValue(kpi.target, kpi.format) : null;
+
+    if (rag === "green") greenCount++;
+    else if (rag === "amber") amberCount++;
+    else if (rag === "red") redCount++;
+
+    kpiRowsHtml += `
+      <tr style="border-bottom:1px solid #f3f4f6;">
+        <td style="padding:12px 16px;font-size:14px;color:#374151;font-weight:500;">${kpi.name}</td>
+        <td style="padding:12px 16px;font-size:16px;font-weight:700;color:#111827;">${currFmt}${arrow}</td>
+        <td style="padding:12px 16px;font-size:13px;color:#6b7280;">${tgtFmt ? "Target: " + tgtFmt : "—"}</td>
+        <td style="padding:12px 16px;">
+          <span style="display:inline-flex;align-items:center;gap:6px;background:${rc.bg};border:1px solid ${rc.border};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;color:${rc.dot};">
+            <span style="width:7px;height:7px;background:${rc.dot};border-radius:50%;display:inline-block;"></span>
+            ${rc.label}
+          </span>
+        </td>
+      </tr>`;
+  });
+
+  // ── Build summary bar ────────────────────────────────────────
+  const summaryHtml = `
+    <div style="display:flex;gap:12px;margin:16px 0 24px;">
+      <div style="flex:1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#16a34a;">${greenCount}</div>
+        <div style="font-size:11px;color:#166534;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">On Track</div>
+      </div>
+      <div style="flex:1;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#d97706;">${amberCount}</div>
+        <div style="font-size:11px;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Watch</div>
+      </div>
+      <div style="flex:1;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:#dc2626;">${redCount}</div>
+        <div style="font-size:11px;color:#991b1b;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Off Track</div>
+      </div>
+    </div>`;
+
+  // ── Full HTML email ──────────────────────────────────────────
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:620px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+
+    <!-- Header -->
+    <div style="background:#1A4A8A;padding:24px 32px;">
+      <div style="font-size:12px;color:#93c5fd;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">
+        Weekly KPI Digest
+      </div>
+      <div style="font-size:24px;font-weight:800;color:#ffffff;">${weekLabel}</div>
+    </div>
+
+    <!-- Summary -->
+    <div style="padding:24px 32px 0;">
+      <div style="font-size:13px;font-weight:600;color:#6b7280;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">
+        At a Glance
+      </div>
+      ${summaryHtml}
+    </div>
+
+    <!-- KPI Table -->
+    <div style="padding:0 32px 24px;">
+      <div style="font-size:13px;font-weight:600;color:#6b7280;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;">
+        Metrics
+      </div>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <thead>
+          <tr style="background:#f9fafb;">
+            <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Metric</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">This Week</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Target</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Status</th>
+          </tr>
+        </thead>
+        <tbody>${kpiRowsHtml}</tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:16px 32px 24px;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;font-size:12px;color:#9ca3af;">
+        Sent automatically by Startup Ops Toolkit ·
+        <a href="https://nikhil-thomas-a.github.io/startup-ops-toolkit/" style="color:#1A4A8A;text-decoration:none;">startup-ops-toolkit</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  // ── Send to all recipients ───────────────────────────────────
+  const subject = CONFIG.subject.replace("{{WEEK}}", weekLabel);
+  CONFIG.recipients.forEach(email => {
+    MailApp.sendEmail({ to: email, subject, htmlBody, name: CONFIG.emailSender });
+  });
+
+  Logger.log(`✅ KPI digest sent for ${weekLabel} to ${CONFIG.recipients.join(", ")}`);
+}
+
+// ── MENU: Add to Sheet UI ──────────────────────────────────────
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("📊 KPI Emailer")
+    .addItem("Setup Sheet",          "setupSheet")
+    .addSeparator()
+    .addItem("Set Weekly Trigger",   "setWeeklyTrigger")
+    .addItem("Send Now (Test)",      "sendWeeklyKPIEmail")
+    .addToUi();
+}`;
+
 // ── TOOLS DATA (plain colour strings, no theme refs) ───────────
 const TOOLS = [
   {
@@ -374,14 +676,29 @@ const TOOLS = [
     script:DOC_SCRIPT,
   },
   {
-    id:"kpi-emailer", emoji:"📊", status:"coming",
+    id:"kpi-emailer", emoji:"📊", status:"live", isNew:true,
     colorKey:"amber", tag:"Sheets + Gmail",
     title:"Weekly KPI Emailer",
     tagline:"Auto-sends a formatted KPI digest every Monday morning.",
     problem:"Someone has to manually compile and send the weekly numbers. It's always late, always slightly wrong.",
-    solution:"Sheet tracks your KPIs week by week. Script runs on a Monday trigger, compiles the latest row into a clean HTML email, sends to your distribution list.",
-    features:["Time-based trigger (Monday 8am)","HTML email with colour-coded RAG status","Compares to prior week automatically","Configurable recipient list","No manual steps — set once, runs forever"],
-    columns:[], steps:[], script:"",
+    solution:"Sheet tracks your KPIs week by week. Script runs on a Monday trigger, compiles the latest row into a clean HTML email with RAG status, sends to your distribution list.",
+    features:[
+      "Time-based trigger — Monday 8am, set once and forget",
+      "HTML email with green / amber / red RAG status per metric",
+      "Week-on-week comparison with % change arrows",
+      "Fully configurable: add/remove KPIs, set targets, change recipients",
+      "Test send anytime via the Sheet menu",
+    ],
+    columns:["Week","Week Start","...your KPI columns (auto-created)"],
+    steps:[
+      {n:"1",title:"Open Apps Script",desc:"In your Google Sheet: Extensions → Apps Script"},
+      {n:"2",title:"Paste and save",desc:"Copy the full script, paste into Apps Script editor, save (Ctrl+S)"},
+      {n:"3",title:"Edit CONFIG",desc:"Update recipients[], add your KPI names and targets in the kpis[] array"},
+      {n:"4",title:"Run setupSheet()",desc:"Creates the KPI Tracker tab with headers matching your CONFIG"},
+      {n:"5",title:"Set the trigger",desc:"Run setWeeklyTrigger() once — digest sends every Monday at 8am automatically"},
+      {n:"6",title:"Fill weekly data",desc:"Add a new row each week. Email sends automatically — or use 'Send Now (Test)' from the Sheet menu"},
+    ],
+    script:KPI_SCRIPT,
   },
   {
     id:"hiring-tracker", emoji:"🧑‍💼", status:"coming",
@@ -476,7 +793,7 @@ function ToolCard({ tool, onOpen, C }) {
           }}>{tool.tag}</span>
         </div>
         {isLive
-          ? <span style={{fontFamily:C.mono,fontSize:11,fontWeight:700,color:color,background:colorBg,padding:"3px 10px",borderRadius:20,letterSpacing:"0.06em"}}>LIVE</span>
+          ? <div style={{display:"flex",gap:6,alignItems:"center"}}><span style={{fontFamily:C.mono,fontSize:11,fontWeight:700,color:color,background:colorBg,padding:"3px 10px",borderRadius:20,letterSpacing:"0.06em"}}>LIVE</span>{tool.isNew&&<span style={{background:"#16a34a",color:"#fff",fontSize:9,fontWeight:800,letterSpacing:"0.12em",padding:"2px 7px",borderRadius:3,textTransform:"uppercase"}}>NEW</span>}</div>
           : <span style={{fontFamily:C.mono,fontSize:11,color:C.inkSoft,background:C.surface,padding:"3px 10px",borderRadius:20,letterSpacing:"0.06em"}}>COMING SOON</span>
         }
       </div>
